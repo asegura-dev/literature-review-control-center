@@ -1,0 +1,80 @@
+# The quality gate of ADR-0002 on Linux and Windows, and the commit-message check of ADR-0008.
+#
+# The gate is exactly the four commands a developer runs locally. uv is pinned to the version the
+# lockfile was produced with, so CI resolves what the developer resolved.
+
+name: Quality gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Gate (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.10.12"
+
+      - name: Install Python from .python-version
+        run: uv python install
+
+      - name: Install dependencies from the lockfile
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Run tests
+        run: uv run pytest
+
+  commit-messages:
+    name: Commit messages name only the human author
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository with its history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A pull request is checked from its base; a push from the previous tip of the branch, or
+      # whole when the branch is new (GitHub then reports the previous tip as all zeros).
+      - name: Check every new commit
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            range="$HEAD"
+          else
+            range="$BASE..$HEAD"
+          fi
+          status=0
+          for sha in $(git rev-list "$range"); do
+            git log -1 --format=%B "$sha" > "$RUNNER_TEMP/message.txt"
+            python3 scripts/check_commit_message.py "$RUNNER_TEMP/message.txt" || { echo "in commit $sha"; status=1; }
+          done
+          exit $status
