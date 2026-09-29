@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted (built in v0.0.1)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -46,7 +46,7 @@ Two questions follow:
 
 ## Decision Outcome
 
-Recommended option: **option 1**.
+Chosen option: **option 1**.
 
 - **No attribution in the repository.** No commit, pull request, tag, release note, `CITATION.cff`
   entry or document names an AI tool as author or co-author. No `Co-authored-by:` trailer, no
@@ -115,3 +115,13 @@ Recommended option: **option 1**.
 - COPE, "Authorship and AI tools" (position statement), and the ICMJE Recommendations, section on
   AI-assisted technologies. Both should be reread when a paper is submitted, since venue policies
   change.
+
+## Implementation
+
+- **v0.0.1.** `scripts/check_commit_message.py` holds the patterns, with tests for what it
+  rejects and what it lets through. It is run as the `no-ai-attribution` `commit-msg` hook in
+  `.pre-commit-config.yaml`, and by the `commit-messages` job in
+  `.github/workflows/quality-gate.yml` over every new commit of a push or a pull request. Direct
+  pushes to `main` are covered as well as pull requests, because the maintainer pushes directly.
+- The hook was seen to reject a message with a `Co-authored-by:` trailer, naming the line. The
+  output is in `docs/phases/v0.0.1.md`.

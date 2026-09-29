@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -36,7 +36,7 @@ gets its own record when v0.14.0 is planned.
 
 ## Decision Outcome
 
-Recommended option: **option 1**.
+Chosen option: **option 1**.
 
 - **The review bundle is the contract.** It is a set of files with a manifest and a digest of
   every file. Its JSON Schema lives in `schemas/`, versioned with SemVer independently of the
@@ -100,3 +100,11 @@ Recommended option: **option 1**.
 
 - The brief, section 9, lists what the bundle is expected to contain. That list is direction; the
   bundle's schema is decided in its own record before v0.14.0.
+
+## Implementation
+
+- **v0.0.1.** `tests/test_no_listening_port.py` scans `src/lrcc/` and fails on server-side
+  imports (`http.server`, `socketserver`, web frameworks) and on `bind`, `listen`,
+  `start_server`, `create_server` and `serve_forever` calls. Parametrized cases prove each kind
+  is caught, and one proves a client socket is not. The bundle, `--json` and `lrcc.api` arrive
+  with their versions.

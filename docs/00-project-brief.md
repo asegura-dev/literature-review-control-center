@@ -2,7 +2,7 @@
 
 This chapter was written on 2026-09-28, before the first line of code. It records the founding design of LRCC. Where a later chapter or a decision record disagrees with it, the later document wins, and a note is added here instead of the text being quietly rewritten.
 
-Notes are blockquotes that begin with their date. The first ones were added on 2026-09-29, when the decision records ADR-0001 to ADR-0009 were drafted (status: Proposed) and reading this brief against them exposed gaps. A note that cites a Proposed record describes a proposal, not a decision.
+Notes are blockquotes that begin with their date. The first ones were added on 2026-09-29, when the decision records ADR-0001 to ADR-0009 were drafted (status: Proposed) and reading this brief against them exposed gaps. A note that cites a Proposed record describes a proposal, not a decision. All nine records were accepted by the maintainer later that day, unchanged.
 
 ## 1. Purpose
 

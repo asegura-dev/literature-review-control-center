@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -42,7 +42,7 @@ there are, and whether the program talks to it through an abstraction.
 
 ## Decision Outcome
 
-Recommended option: **option 1**.
+Chosen option: **option 1**.
 
 - **Location.** Each review's database is `reviews/<review_id>/review.duckdb` inside the
   workspace (ADR-0006).
