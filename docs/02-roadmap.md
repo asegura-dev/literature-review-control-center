@@ -8,7 +8,8 @@ This roadmap was written on 2026-09-28, before the first commit.
 
 - **v0.0.1, Scaffold,** was built on 2026-09-29 and merged into `main` through pull request #1. Its gate is green in CI on Linux and Windows ([phase notes](phases/v0.0.1.md)).
 - **v0.1.0, Configuration, protocol and workspace,** was built on 2026-09-29, and its gate is green locally ([phase notes](phases/v0.1.0.md)). It delivers LRCC's first two commands, `lrcc init` and `lrcc validate`.
-- **v0.3.0, One HTTP client and the first two sources, is the current phase.** It was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.3.0.md)). It delivers `lrcc search` for PubMed and arXiv, as a preview that stores nothing. No real search has been run yet: that is the maintainer's step.
+- **v0.3.0, One HTTP client and the first two sources,** was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.3.0.md)). It delivers `lrcc search` for PubMed and arXiv.
+- **v0.5.0, Stored runs, is the current phase.** It was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.5.0.md)). `lrcc search` now stores a run, and `lrcc status` lists the runs and checks the log. **The phase is not done:** its criterion is real counts recorded from a real run, and no real search has been run yet. That run is the maintainer's step.
 
 On 2026-09-29, ADR-0010 merged the v0.2.0 row into v0.1.0, because `init` needs the workspace boundary. The same record moved network settings and allowed hosts to v0.3.0, and secrets to v0.4.0, where the code that reads them arrives. Later version numbers did not change.
 
@@ -35,7 +36,7 @@ Every version closes the same way. A decision record precedes the code. The code
 | v0.2.0 | Merged into v0.1.0 (ADR-0010) | |
 | v0.3.0 | One HTTP client and the first two sources (ADR-0011): a host allowlist with a rate limit per host, retries, and the network off by default, all in the configuration; defusedxml; a frozen `Record`; the source port with its two real cases, PubMed and arXiv, tested against synthetic fixtures; `lrcc search`, a preview that stores nothing | the gate fails if anything but the one client can reach the network, and the client refuses an unlisted host before sending; `search` runs offline against fixtures |
 | v0.4.0 | Merged into v0.3.0 (ADR-0011) | |
-| v0.5.0 | DuckDB store, raw responses kept, hash-chained run log, `status` with Rich; the first real run of the first review | real counts are recorded with their date and query version |
+| v0.5.0 | Stored runs (ADR-0012): `lrcc search` stores each raw response with its digest, the records, and a hash-chained run log in a DuckDB database per review; `--preview` stores nothing; `lrcc status` lists the runs and verifies the chain; the first real run of the first review | real counts are recorded with their date and query version |
 | v0.6.0 | `check-query`: a search string against a gold set, per source | the string retrieves the whole gold set, or every gap is recorded with its reason |
 | v0.7.0 | `replay` and `verify` | a replay produces identical outputs; a re-run is documented as a different run |
 | v0.8.0 | Scopus and IEEE Xplore (by API if a key exists, by importing manual exports otherwise); secrets only from `.env`, for the first key a source requires; the same import serves records found by other methods; ntfy for long runs | four sources unified; a long run says when it is done |
