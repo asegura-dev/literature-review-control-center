@@ -12,13 +12,14 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Mapping
 from importlib.metadata import version
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from lrcc.domain.config import NetworkConfig
 from lrcc.domain.errors import NetworkError
+from lrcc.domain.record import RawResponse
 
 #: How many times a request is tried before giving up.
 ATTEMPTS = 4
@@ -57,6 +58,21 @@ class HttpClient:
             follow_redirects=False,
             headers={"User-Agent": f"lrcc/{version('literature-review-control-center')}"},
         )
+
+    def fetch(self, url: str, params: Mapping[str, str]) -> RawResponse:
+        """Fetch ``url`` and return the answer with the address that was asked.
+
+        Args:
+            url: An HTTPS URL on an allowed host.
+            params: The query parameters.
+
+        Returns:
+            The body exactly as received, and the full address, so a run can store both.
+
+        Raises:
+            NetworkError: As :meth:`get`.
+        """
+        return RawResponse(url=f"{url}?{urlencode(params)}", body=self.get(url, params))
 
     def get(self, url: str, params: Mapping[str, str]) -> bytes:
         """Fetch ``url`` and return the body of the answer.

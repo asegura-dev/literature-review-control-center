@@ -9,6 +9,7 @@ as Rich markup, so a title containing ``[bold]`` is printed as written.
 
 import json
 import os
+from collections.abc import Callable, Mapping
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -26,9 +27,10 @@ from lrcc.features.configuration import (
     workspace_of,
 )
 from lrcc.features.init import InitResult, init_review
-from lrcc.features.search import SearchOutcome, search_review
+from lrcc.features.search import RunOutcome, SearchOutcome, run_search, search_review
+from lrcc.features.status import StatusResult, review_status
 from lrcc.features.validate import ValidationResult, validate_review
-from lrcc.views.cli.composition import build_source
+from lrcc.views.cli.composition import build_source, build_store
 
 app = typer.Typer(
     add_completion=False,
@@ -67,7 +69,17 @@ SourceOption = Annotated[
     SourceName, typer.Option("--source", help="The source to search.", show_default=False)
 ]
 LimitOption = Annotated[
-    int, typer.Option("--limit", min=1, max=10000, help="The most records to retrieve.")
+    int | None,
+    typer.Option(
+        "--limit",
+        min=1,
+        max=10000,
+        help="The most records to retrieve. Defaults to all for a run, and a few for a preview.",
+        show_default=False,
+    ),
+]
+PreviewOption = Annotated[
+    bool, typer.Option("--preview", help="Show what the string returns, and store nothing.")
 ]
 
 
@@ -105,25 +117,93 @@ def validate(
 def search(
     review_id: ReviewIdArgument,
     source: SourceOption,
-    limit: LimitOption = 20,
+    preview: PreviewOption = False,
+    limit: LimitOption = None,
     config: ConfigOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """Run the protocol's search string on one source, as a preview. Nothing is stored."""
+    """Run the protocol's search string on one source and store the run, or preview it."""
     try:
         configuration = load_configuration(config)
-        outcome = search_review(
-            workspace_of(configuration, os.environ),
-            review_id,
-            build_source(source.value, configuration),
-            limit,
-        )
+        workspace = workspace_of(configuration, os.environ)
+        chosen = build_source(source.value, configuration)
+        if preview:
+            outcome = search_review(workspace, review_id, chosen, limit)
+            _present(outcome.as_dict(), as_json, lambda: _show_search(outcome))
+        else:
+            stored = run_search(
+                workspace, review_id, chosen, build_store(workspace, review_id), limit
+            )
+            _present(stored.as_dict(), as_json, lambda: _show_run(stored))
     except LrccError as error:
         _fail(error, as_json)
+
+
+@app.command()
+def status(
+    review_id: ReviewIdArgument, config: ConfigOption = None, as_json: JsonOption = False
+) -> None:
+    """List a review's stored runs, and check its run log. Exits 1 if the log was edited."""
+    try:
+        workspace = open_configured_workspace(config, os.environ)
+        result = review_status(workspace, review_id, build_store(workspace, review_id))
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(result.as_dict(), as_json, lambda: _show_status(result))
+    if result.chain_problems:
+        raise typer.Exit(code=1)
+
+
+def _present(data: Mapping[str, object], as_json: bool, show: Callable[[], None]) -> None:
     if as_json:
-        _echo_json(outcome.as_dict())
+        _echo_json(data)
     else:
-        _show_search(outcome)
+        show()
+
+
+def _show_run(outcome: RunOutcome) -> None:
+    run = outcome.logged.run
+    console.print(Text.assemble("Stored run ", (run.run_id, "bold"), "."))
+    for label, value in (
+        ("source", run.source),
+        ("reported", str(run.reported)),
+        ("retrieved", str(run.retrieved)),
+        ("responses", f"{len(run.responses)} file(s) under runs/{run.run_id}"),
+        ("protocol", run.protocol_sha256),
+        ("entry hash", outcome.logged.entry_hash),
+    ):
+        console.print(Text(f"  {label:<11}{value}"))
+    if not run.complete:
+        console.print(
+            Text(
+                f"Incomplete: {run.source} reports {run.reported} records and"
+                f" {run.retrieved} were retrieved.",
+                style="yellow",
+            )
+        )
+
+
+def _show_status(result: StatusResult) -> None:
+    console.print(Text.assemble("Review ", (result.review_id, "bold"), "."))
+    console.print(Text(f"  protocol   {result.protocol_sha256}"))
+    if not result.runs:
+        console.print(Text("  No runs are stored yet."))
+    # One line per run, never a table: a run id must stay whole to be copied or searched for.
+    for summary in result.runs:
+        run = summary.logged.run
+        console.print(
+            Text(
+                f"  {run.run_id}  reported {run.reported}  retrieved {run.retrieved}  "
+                f"{'complete' if run.complete else 'incomplete'}  "
+                f"protocol {'current' if summary.current_protocol else 'changed since'}"
+            )
+        )
+    if result.chain_problems:
+        console.print(Text("The run log does not verify:", style="bold red"))
+        for problem in result.chain_problems:
+            console.print(Text(f"  - {problem}"))
+    else:
+        console.print(Text("The run log verifies: no entry was edited.", style="green"))
 
 
 def _show_search(outcome: SearchOutcome) -> None:

@@ -52,6 +52,10 @@ class SourceError(LrccError):
     """A source answered with something LRCC cannot read as records."""
 
 
+class StoreError(LrccError):
+    """A review's database or its stored responses could not be read or written (ADR-0012)."""
+
+
 def describe_validation(error: ValidationError) -> list[str]:
     """Turn a Pydantic validation error into one plain line per problem.
 

@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from xml.etree.ElementTree import Element
 
 API = "https://export.arxiv.org/api/query"
+#: Entries requested per call. A run pages until it has every entry arXiv reports.
+PAGE = 100
 NAMESPACES = {
     "atom": "http://www.w3.org/2005/Atom",
     "opensearch": "http://a9.com/-/spec/opensearch/1.1/",
@@ -55,25 +57,39 @@ class ArxivSource:
             NetworkError: If the request is refused or fails.
             SourceError: If the answer cannot be read, or arXiv rejects the query.
         """
-        feed = parse_xml(
-            self._client.get(API, {"search_query": query, "start": "0", "max_results": str(limit)}),
-            "arXiv",
-        )
-        entries = feed.findall("atom:entry", NAMESPACES)
-        for entry in entries:
-            if "/api/errors" in clean(entry.findtext("atom:id", namespaces=NAMESPACES)):
-                raise SourceError(
-                    "arXiv rejected the query",
-                    [full_text(entry.find("atom:summary", NAMESPACES)) or "no detail"],
-                )
-        count = clean(feed.findtext("opensearch:totalResults", namespaces=NAMESPACES))
-        if not count.isdigit():
-            raise SourceError("arXiv answered without a count")
+        records: list[Record] = []
+        responses = []
+        while True:
+            page = self._client.fetch(
+                API,
+                {
+                    "search_query": query,
+                    "start": str(len(records)),
+                    "max_results": str(min(PAGE, limit - len(records))),
+                },
+            )
+            responses.append(page)
+            feed = parse_xml(page.body, "arXiv")
+            entries = feed.findall("atom:entry", NAMESPACES)
+            for entry in entries:
+                if "/api/errors" in clean(entry.findtext("atom:id", namespaces=NAMESPACES)):
+                    raise SourceError(
+                        "arXiv rejected the query",
+                        [full_text(entry.find("atom:summary", NAMESPACES)) or "no detail"],
+                    )
+            count = clean(feed.findtext("opensearch:totalResults", namespaces=NAMESPACES))
+            if not count.isdigit():
+                raise SourceError("arXiv answered without a count")
+            records.extend(_record(entry) for entry in entries)
+            # An empty page ends the loop even if arXiv reported more than it delivers.
+            if not entries or len(records) >= min(limit, int(count)):
+                break
         return SearchResult(
             source=self.name,
             query=query,
             reported=int(count),
-            records=tuple(_record(entry) for entry in entries),
+            records=tuple(records),
+            responses=tuple(responses),
         )
 
 

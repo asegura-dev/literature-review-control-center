@@ -21,6 +21,8 @@ ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
 EFETCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 #: NCBI asks tools to name themselves in every request.
 TOOL = "lrcc"
+#: The most identifiers one ``esearch`` call returns. Beyond it, NCBI requires its history server.
+ESEARCH_MAX = 10_000
 #: Identifiers requested per ``efetch`` call.
 BATCH = 200
 
@@ -54,19 +56,18 @@ class PubMedSource:
             NetworkError: If a request is refused or fails.
             SourceError: If an answer cannot be read.
         """
-        found = parse_xml(
-            self._client.get(
-                ESEARCH,
-                {
-                    "db": "pubmed",
-                    "term": query,
-                    "retmax": str(limit),
-                    "retmode": "xml",
-                    "tool": TOOL,
-                },
-            ),
-            "PubMed",
+        searched = self._client.fetch(
+            ESEARCH,
+            {
+                "db": "pubmed",
+                "term": query,
+                "retmax": str(min(limit, ESEARCH_MAX)),
+                "retmode": "xml",
+                "tool": TOOL,
+            },
         )
+        responses = [searched]
+        found = parse_xml(searched.body, "PubMed")
         count = clean(found.findtext("./Count"))
         if not count.isdigit():
             raise SourceError(
@@ -77,16 +78,18 @@ class PubMedSource:
         records: list[Record] = []
         for start in range(0, len(identifiers), BATCH):
             batch = identifiers[start : start + BATCH]
-            fetched = parse_xml(
-                self._client.get(
-                    EFETCH,
-                    {"db": "pubmed", "id": ",".join(batch), "retmode": "xml", "tool": TOOL},
-                ),
-                "PubMed",
+            fetched = self._client.fetch(
+                EFETCH, {"db": "pubmed", "id": ",".join(batch), "retmode": "xml", "tool": TOOL}
             )
-            records.extend(_record(article) for article in fetched.findall("./PubmedArticle"))
+            responses.append(fetched)
+            articles = parse_xml(fetched.body, "PubMed").findall("./PubmedArticle")
+            records.extend(_record(article) for article in articles)
         return SearchResult(
-            source=self.name, query=query, reported=int(count), records=tuple(records)
+            source=self.name,
+            query=query,
+            reported=int(count),
+            records=tuple(records),
+            responses=tuple(responses),
         )
 
 

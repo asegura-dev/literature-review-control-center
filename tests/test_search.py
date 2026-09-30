@@ -1,4 +1,4 @@
-"""``lrcc search`` driven as a person drives it, against a mocked transport (ADR-0011).
+"""``lrcc search --preview`` driven as a person drives it, against a mocked transport (ADR-0011).
 
 The command builds the real HTTP client and the real source from the configuration file, so
 these tests cover the whole path but the wire. No route is mocked unless a test expects a
@@ -32,6 +32,13 @@ ALLOWED = {
     },
 }
 
+#: A page with no entries: what arXiv returns when asked past its last result.
+PAST_THE_LAST_RESULT = (
+    b'<feed xmlns="http://www.w3.org/2005/Atom">'
+    b'<opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">57'
+    b"</opensearch:totalResults></feed>"
+)
+
 
 def lrcc(*args: str) -> Result:
     """Run ``lrcc`` with ``args``, with ``LRCC_CONFIG`` unset."""
@@ -56,9 +63,12 @@ def test_search_prints_the_count_and_the_records(
 ) -> None:
     """The reported count, the records, and the reminder that nothing was stored."""
     respx_mock.get(API).mock(
-        return_value=httpx.Response(200, content=fixture_bytes("arxiv_feed.xml"))
+        side_effect=[
+            httpx.Response(200, content=fixture_bytes("arxiv_feed.xml")),
+            httpx.Response(200, content=PAST_THE_LAST_RESULT),
+        ]
     )
-    result = lrcc("search", "example", "--source", "arxiv", "--config", review())
+    result = lrcc("search", "example", "--preview", "--source", "arxiv", "--config", review())
     assert result.exit_code == 0, result.stderr
     assert "arxiv reports 57 records" in result.stdout
     assert "2 retrieved" in result.stdout
@@ -81,7 +91,9 @@ def test_search_sends_the_string_the_protocol_holds(
         return_value=httpx.Response(200, content=fixture_bytes("pubmed_efetch.xml"))
     )
     config = review()
-    result = lrcc("search", "example", "--source", "pubmed", "--limit", "2", "--config", config)
+    result = lrcc(
+        "search", "example", "--preview", "--source", "pubmed", "--limit", "2", "--config", config
+    )
     assert result.exit_code == 0, result.stderr
 
     protocol = yaml.safe_load(
@@ -91,7 +103,9 @@ def test_search_sends_the_string_the_protocol_holds(
     assert esearch.calls.last.request.url.params["retmax"] == "2"
 
     data = json.loads(
-        lrcc("search", "example", "--source", "pubmed", "--config", config, "--json").stdout
+        lrcc(
+            "search", "example", "--preview", "--source", "pubmed", "--config", config, "--json"
+        ).stdout
     )
     checked = json.loads(lrcc("validate", "example", "--config", config, "--json").stdout)
     assert data["protocol_sha256"] == checked["sha256"]
@@ -107,7 +121,9 @@ def test_with_the_network_off_nothing_is_requested(
 ) -> None:
     """The default: a configuration without a network section cannot search."""
     lrcc("init", "example", "--config", str(config_file))
-    result = lrcc("search", "example", "--source", "arxiv", "--config", str(config_file))
+    result = lrcc(
+        "search", "example", "--preview", "--source", "arxiv", "--config", str(config_file)
+    )
     assert result.exit_code == 1
     assert "the network is off" in result.stderr
     assert "network.enabled" in result.stderr
@@ -119,7 +135,7 @@ def test_a_host_that_is_not_listed_is_not_contacted(
 ) -> None:
     """Turning the network on allows only the hosts that are named."""
     config = review(enabled=True, hosts={"eutils.ncbi.nlm.nih.gov": {"min_interval": 0}})
-    result = lrcc("search", "example", "--source", "arxiv", "--config", config)
+    result = lrcc("search", "example", "--preview", "--source", "arxiv", "--config", config)
     assert result.exit_code == 1
     assert "export.arxiv.org is not an allowed host" in result.stderr
     assert respx_mock.calls.call_count == 0
@@ -133,7 +149,7 @@ def test_a_protocol_without_a_string_for_the_source(
     data = yaml.safe_load(protocol.read_text(encoding="utf-8"))
     del data["sources"]["arxiv"]
     protocol.write_text(yaml.safe_dump(data), encoding="utf-8")
-    result = lrcc("search", "example", "--source", "arxiv", "--config", review())
+    result = lrcc("search", "example", "--preview", "--source", "arxiv", "--config", review())
     assert result.exit_code == 1
     assert "has no search string for arxiv" in result.stderr
     assert "its sources are: pubmed" in result.stderr
@@ -149,14 +165,16 @@ def test_a_source_error_is_reported_as_data_with_json(
     respx_mock.get(API).mock(
         return_value=httpx.Response(200, content=fixture_bytes("arxiv_error.xml"))
     )
-    result = lrcc("search", "example", "--source", "arxiv", "--config", review(), "--json")
+    result = lrcc(
+        "search", "example", "--preview", "--source", "arxiv", "--config", review(), "--json"
+    )
     assert result.exit_code == 1
     assert json.loads(result.stdout)["error"] == "arXiv rejected the query"
 
 
 def test_an_unknown_source_is_a_usage_error(review: Callable[..., str]) -> None:
     """Only sources with an adapter are offered."""
-    result = lrcc("search", "example", "--source", "scopus", "--config", review())
+    result = lrcc("search", "example", "--preview", "--source", "scopus", "--config", review())
     assert result.exit_code == 2
 
 

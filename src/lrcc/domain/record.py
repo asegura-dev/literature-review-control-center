@@ -23,8 +23,17 @@ class Record(BaseModel):
     abstract: str | None
 
 
+class RawResponse(BaseModel):
+    """One answer from a source, exactly as received, with the address that was asked (ADR-0012)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    url: str
+    body: bytes
+
+
 class SearchResult(BaseModel):
-    """What one search returned: the count the source reported, and the records retrieved."""
+    """What one search returned: the reported count, the records, and the answers they came from."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -32,3 +41,4 @@ class SearchResult(BaseModel):
     query: str
     reported: int
     records: tuple[Record, ...]
+    responses: tuple[RawResponse, ...] = ()
