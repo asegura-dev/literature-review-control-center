@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from lrcc.adapters.http import HttpClient
 from lrcc.adapters.sources.safe_xml import clean, full_text, parse_xml
 from lrcc.domain.errors import SourceError
+from lrcc.domain.gold import GoldWork
 from lrcc.domain.record import Record, SearchResult
 
 if TYPE_CHECKING:
@@ -98,6 +99,32 @@ class ArxivSource:
             SourceError: If a page cannot be read.
         """
         return tuple(_record(entry) for body in bodies for entry in _page(body)[1])
+
+    def holds(self, work: GoldWork, query: str | None) -> bool | None:
+        """Say whether arXiv holds ``work``, and whether ``query`` retrieves it.
+
+        The work is found by its arXiv identifier. Given both ``id_list`` and ``search_query``,
+        the arXiv API returns the listed works that the query matches, so one request answers
+        whether the string retrieves that exact work.
+
+        Args:
+            work: A work from a gold set.
+            query: A search string, or None to ask only whether arXiv holds the work.
+
+        Returns:
+            True or False, or None if the work has no arXiv identifier. arXiv cannot be searched
+            by DOI, so a work known only by DOI cannot be checked here.
+
+        Raises:
+            NetworkError: If the request is refused or fails.
+            SourceError: If the answer cannot be read, or arXiv rejects the query.
+        """
+        if not work.arxiv:
+            return None
+        params = {"id_list": work.arxiv, "max_results": "1"}
+        if query is not None:
+            params["search_query"] = query
+        return bool(_page(self._client.get(API, params))[1])
 
 
 def _page(body: bytes) -> tuple[int, list[Element]]:

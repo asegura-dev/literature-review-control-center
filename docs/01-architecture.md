@@ -28,7 +28,8 @@ src/lrcc/
 │   ├── workspace.py    Workspace: the boundary of ADR-0006
 │   ├── reviews.py      read a review's protocol from the workspace
 │   ├── record.py       Record, RawResponse and SearchResult: what a source said
-│   └── runs.py         Run, and the hash chain of the run log
+│   ├── runs.py         Run, and the hash chain of the run log
+│   └── gold.py         GoldSet: works known to be relevant, and their identifiers
 ├── ports/
 │   ├── source.py       the source port: a query and a limit in, a SearchResult out
 │   └── store.py        the store port: the run log, records and raw responses
@@ -42,6 +43,7 @@ src/lrcc/
 │   ├── validate.py       check a protocol and report its digest
 │   ├── search.py         run the protocol's string on one source: a stored run, or a preview
 │   ├── status.py         list a review's runs and verify its log
+│   ├── check_query.py    test a string against the gold set: retrieved, missed, not indexed
 │   ├── verify.py         check every stored response and record against the log
 │   └── replay.py         rederive every run's records from its stored responses
 └── views/

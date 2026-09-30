@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from lrcc.adapters.http import HttpClient
 from lrcc.adapters.sources.safe_xml import clean, full_text, parse_xml
 from lrcc.domain.errors import SourceError
+from lrcc.domain.gold import GoldWork
 from lrcc.domain.record import Record, SearchResult
 
 if TYPE_CHECKING:
@@ -118,6 +119,45 @@ class PubMedSource:
                 elif node.tag == "PubmedBookArticle":
                     records.append(_book(node))
         return tuple(records)
+
+    def holds(self, work: GoldWork, query: str | None) -> bool | None:
+        """Say whether PubMed holds ``work``, and whether ``query`` retrieves it.
+
+        The work is found by DOI or PMID. With a query, the query and the identifier are
+        combined with AND, so the answer is whether the string retrieves that exact work. One
+        ``esearch`` request, asking for a count only.
+
+        Args:
+            work: A work from a gold set.
+            query: A search string, or None to ask only whether PubMed indexes the work.
+
+        Returns:
+            True or False, or None if the work has neither a DOI nor a PMID.
+
+        Raises:
+            NetworkError: If the request is refused or fails.
+            SourceError: If the answer has no count.
+        """
+        targets = []
+        if work.doi:
+            targets.append(f'"{work.doi}"[doi]')
+        if work.pmid:
+            targets.append(f"{work.pmid}[pmid]")
+        if not targets:
+            return None
+        target = " OR ".join(targets)
+        term = f"({target})" if query is None else f"({query}) AND ({target})"
+        found = parse_xml(
+            self._client.get(
+                ESEARCH,
+                {"db": "pubmed", "term": term, "retmax": "0", "retmode": "xml", "tool": TOOL},
+            ),
+            "PubMed",
+        )
+        count = clean(found.findtext("./Count"))
+        if not count.isdigit():
+            raise SourceError("PubMed answered without a count")
+        return int(count) > 0
 
 
 def _authors(parent: Element | None) -> tuple[str, ...]:

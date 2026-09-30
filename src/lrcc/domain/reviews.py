@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from lrcc.domain.errors import ProtocolError, ReviewError
+from lrcc.domain.gold import GOLD_FILE, GoldSet, parse_gold_set
 from lrcc.domain.protocol import Protocol, parse_protocol, protocol_digest
 from lrcc.domain.workspace import Workspace
 
@@ -48,3 +49,25 @@ def load_review_protocol(workspace: Workspace, review_id: str) -> LoadedProtocol
             ["the review_id inside a protocol must match its folder"],
         )
     return LoadedProtocol(protocol, path, protocol_digest(data))
+
+
+def load_gold_set(workspace: Workspace, review_id: str) -> tuple[GoldSet, Path]:
+    """Read and validate the gold set of ``review_id``.
+
+    Args:
+        workspace: The accepted workspace.
+        review_id: The review whose gold set to read.
+
+    Returns:
+        The gold set and where it was read from.
+
+    Raises:
+        ReviewError: If the id is invalid, the review has no gold set, or it is not valid.
+    """
+    path = workspace.review_dir(review_id) / GOLD_FILE
+    if not path.is_file():
+        raise ReviewError(
+            f"review {review_id!r} has no gold set at {path}",
+            ["list the works known to be relevant there, with their DOI, PMID or arXiv id"],
+        )
+    return parse_gold_set(path.read_bytes(), source=str(path)), path

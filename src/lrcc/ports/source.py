@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol
 
+from lrcc.domain.gold import GoldWork
 from lrcc.domain.record import Record, SearchResult
 
 
@@ -40,5 +41,17 @@ class Source(Protocol):
 
         Returns:
             The records, as a search that received those answers derives them.
+        """
+        ...
+
+    def holds(self, work: GoldWork, query: str | None) -> bool | None:
+        """Say whether the source holds ``work``, and whether ``query`` retrieves it.
+
+        Args:
+            work: A work from a gold set.
+            query: A search string, or None to ask only whether the source indexes the work.
+
+        Returns:
+            True or False, or None if the work has no identifier this source can look up.
         """
         ...
