@@ -145,3 +145,57 @@ def test_xml_that_cannot_be_read_safely_is_refused(
     with pytest.raises(SourceError, match="cannot be read safely") as caught:
         ArxivSource(HttpClient(NETWORK)).search("a", limit=1)
     assert caught.value.details[0].startswith(expected)
+
+
+def test_pubmed_reads_books_and_chapters_in_order(
+    respx_mock: respx.MockRouter, fixture_bytes: Callable[[str], bytes]
+) -> None:
+    """Book records are records too, kept in the order PubMed gave them.
+
+    The first real run reported 2,499 records and retrieved 2,489: the ten missing were
+    ``PubmedBookArticle`` elements, which the adapter did not read.
+    """
+    found = (
+        b"<eSearchResult><Count>3</Count><IdList><Id>90000003</Id><Id>90000004</Id>"
+        b"<Id>90000005</Id></IdList></eSearchResult>"
+    )
+    respx_mock.get(ESEARCH).mock(return_value=_ok(found))
+    respx_mock.get(EFETCH).mock(return_value=_ok(fixture_bytes("pubmed_efetch_books.xml")))
+    result = PubMedSource(HttpClient(NETWORK)).search("a", limit=3)
+
+    assert result.reported == len(result.records) == 3
+    chapter, article, book = result.records
+    assert chapter == Record(
+        source="pubmed",
+        source_id="90000003",
+        title="A synthetic chapter title.",
+        authors=("Chapter, Charles",),
+        year=2020,
+        doi="10.0000/synthetic.book.1",
+        abstract="An invented chapter abstract.",
+    )
+    assert article.source_id == "90000004"
+    assert book == Record(
+        source="pubmed",
+        source_id="90000005",
+        title="A Synthetic Report, Recorded as a Whole Book",
+        authors=("Synthetic Agency for Reports",),
+        year=2018,
+        doi=None,
+        abstract=None,
+    )
+
+
+def test_records_are_derived_from_the_raw_answers_alone(
+    respx_mock: respx.MockRouter, fixture_bytes: Callable[[str], bytes]
+) -> None:
+    """What a search returns is exactly what its stored answers give back, with no request."""
+    respx_mock.get(ESEARCH).mock(return_value=_ok(fixture_bytes("pubmed_esearch.xml")))
+    respx_mock.get(EFETCH).mock(return_value=_ok(fixture_bytes("pubmed_efetch.xml")))
+    respx_mock.get(API).mock(return_value=_ok(fixture_bytes("arxiv_feed.xml")))
+    for source in (PubMedSource(HttpClient(NETWORK)), ArxivSource(HttpClient(NETWORK))):
+        result = source.search("a", limit=2)
+        requests = respx_mock.calls.call_count
+        bodies = [response.body for response in result.responses]
+        assert source.records_from(bodies) == result.records
+        assert respx_mock.calls.call_count == requests

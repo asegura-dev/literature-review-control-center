@@ -6,9 +6,10 @@ in, and the count the source reported comes out with the records retrieved.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Protocol
 
-from lrcc.domain.record import SearchResult
+from lrcc.domain.record import Record, SearchResult
 
 
 class Source(Protocol):
@@ -28,5 +29,16 @@ class Source(Protocol):
 
         Returns:
             The count the source reported for the query, and the records retrieved.
+        """
+        ...
+
+    def records_from(self, bodies: Sequence[bytes]) -> tuple[Record, ...]:
+        """Derive the records from the raw answers of one search, without any request.
+
+        Args:
+            bodies: The answers exactly as received, in the order they were asked for.
+
+        Returns:
+            The records, as a search that received those answers derives them.
         """
         ...

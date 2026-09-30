@@ -16,7 +16,7 @@ import duckdb
 from pydantic import ValidationError
 
 from lrcc.domain.errors import StoreError
-from lrcc.domain.record import SearchResult
+from lrcc.domain.record import Record, SearchResult
 from lrcc.domain.runs import GENESIS, LoggedRun, Run, entry_hash
 
 DATABASE = "review.duckdb"
@@ -173,3 +173,71 @@ class DuckDbReviewStore:
                 f"the run log in {self._database} holds an entry that is not a run",
                 [f"{problem.error_count()} field(s) do not fit; the log was edited or damaged"],
             ) from None
+
+    def read_response(self, run_id: str, file: str) -> bytes | None:
+        """Return a stored raw response, or None if its file is not there.
+
+        The names come from the log, which may have been edited, so the path is resolved and
+        checked to lie inside the runs folder before anything is read.
+
+        Args:
+            run_id: The run the response belongs to.
+            file: The response's file name, as the log records it.
+
+        Returns:
+            The file's bytes, or None.
+
+        Raises:
+            StoreError: If the names lead outside the review's runs folder.
+        """
+        runs = (self._review_dir / RUNS).resolve()
+        path = (runs / run_id / file).resolve()
+        if not path.is_relative_to(runs):
+            raise StoreError(f"the log names a response outside the review: {run_id}/{file}")
+        return path.read_bytes() if path.is_file() else None
+
+    def files_on_disk(self) -> dict[str, tuple[str, ...]]:
+        """Return what the runs folder really holds: each run folder and the files inside it.
+
+        Returns:
+            A mapping from each folder under ``runs/`` to the names of its files, both sorted.
+            Empty if the review has no runs folder.
+        """
+        runs = self._review_dir / RUNS
+        if not runs.is_dir():
+            return {}
+        return {
+            folder.name: tuple(sorted(path.name for path in folder.iterdir()))
+            for folder in sorted(runs.iterdir())
+            if folder.is_dir()
+        }
+
+    def records(self, run_id: str) -> tuple[Record, ...]:
+        """Return the records the database holds for a run, in order.
+
+        Args:
+            run_id: The run whose records to read.
+
+        Returns:
+            The records, as stored. Empty if the review has no database yet.
+        """
+        if not self._database.exists():
+            return ()
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT source, source_id, title, authors, year, doi, abstract"
+                " FROM records WHERE run_id = ? ORDER BY position",
+                [run_id],
+            ).fetchall()
+        return tuple(
+            Record(
+                source=source,
+                source_id=source_id,
+                title=title,
+                authors=tuple(authors),
+                year=year,
+                doi=doi,
+                abstract=abstract,
+            )
+            for source, source_id, title, authors, year, doi, abstract in rows
+        )

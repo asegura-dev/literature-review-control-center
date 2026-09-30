@@ -1,12 +1,13 @@
 """arXiv, through its Atom API (ADR-0011).
 
-One request returns the count arXiv reports and the entries. arXiv reports a bad query as a feed
-holding a single "Error" entry, with HTTP 200, so that case is recognised and raised.
+Each request returns the count arXiv reports and a page of entries. arXiv reports a bad query as
+a feed holding a single "Error" entry, with HTTP 200, so that case is recognised and raised.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from lrcc.adapters.http import HttpClient
@@ -51,46 +52,67 @@ class ArxivSource:
             limit: The most records to retrieve.
 
         Returns:
-            The count arXiv reported, and the records retrieved.
+            The count arXiv reported, the records retrieved, and the raw answers.
 
         Raises:
             NetworkError: If the request is refused or fails.
             SourceError: If the answer cannot be read, or arXiv rejects the query.
         """
-        records: list[Record] = []
         responses = []
+        retrieved = 0
         while True:
             page = self._client.fetch(
                 API,
                 {
                     "search_query": query,
-                    "start": str(len(records)),
-                    "max_results": str(min(PAGE, limit - len(records))),
+                    "start": str(retrieved),
+                    "max_results": str(min(PAGE, limit - retrieved)),
                 },
             )
             responses.append(page)
-            feed = parse_xml(page.body, "arXiv")
-            entries = feed.findall("atom:entry", NAMESPACES)
-            for entry in entries:
-                if "/api/errors" in clean(entry.findtext("atom:id", namespaces=NAMESPACES)):
-                    raise SourceError(
-                        "arXiv rejected the query",
-                        [full_text(entry.find("atom:summary", NAMESPACES)) or "no detail"],
-                    )
-            count = clean(feed.findtext("opensearch:totalResults", namespaces=NAMESPACES))
-            if not count.isdigit():
-                raise SourceError("arXiv answered without a count")
-            records.extend(_record(entry) for entry in entries)
+            reported, entries = _page(page.body)
+            retrieved += len(entries)
             # An empty page ends the loop even if arXiv reported more than it delivers.
-            if not entries or len(records) >= min(limit, int(count)):
+            if not entries or retrieved >= min(limit, reported):
                 break
         return SearchResult(
             source=self.name,
             query=query,
-            reported=int(count),
-            records=tuple(records),
+            reported=reported,
+            records=self.records_from([response.body for response in responses]),
             responses=tuple(responses),
         )
+
+    def records_from(self, bodies: Sequence[bytes]) -> tuple[Record, ...]:
+        """Derive the records from the raw answers of one search, in order.
+
+        A search and a replay both derive their records here, so they cannot disagree.
+
+        Args:
+            bodies: The pages as received, in the order they were asked for.
+
+        Returns:
+            The records, in the order arXiv gave them.
+
+        Raises:
+            SourceError: If a page cannot be read.
+        """
+        return tuple(_record(entry) for body in bodies for entry in _page(body)[1])
+
+
+def _page(body: bytes) -> tuple[int, list[Element]]:
+    feed = parse_xml(body, "arXiv")
+    entries = feed.findall("atom:entry", NAMESPACES)
+    for entry in entries:
+        if "/api/errors" in clean(entry.findtext("atom:id", namespaces=NAMESPACES)):
+            raise SourceError(
+                "arXiv rejected the query",
+                [full_text(entry.find("atom:summary", NAMESPACES)) or "no detail"],
+            )
+    count = clean(feed.findtext("opensearch:totalResults", namespaces=NAMESPACES))
+    if not count.isdigit():
+        raise SourceError("arXiv answered without a count")
+    return int(count), entries
 
 
 def _record(entry: Element) -> Record:

@@ -27,10 +27,12 @@ from lrcc.features.configuration import (
     workspace_of,
 )
 from lrcc.features.init import InitResult, init_review
+from lrcc.features.replay import ReplayResult, replay_review
 from lrcc.features.search import RunOutcome, SearchOutcome, run_search, search_review
 from lrcc.features.status import StatusResult, review_status
 from lrcc.features.validate import ValidationResult, validate_review
-from lrcc.views.cli.composition import build_source, build_store
+from lrcc.features.verify import VerifyResult, verify_review
+from lrcc.views.cli.composition import build_source, build_sources, build_store
 
 app = typer.Typer(
     add_completion=False,
@@ -152,6 +154,70 @@ def status(
     _present(result.as_dict(), as_json, lambda: _show_status(result))
     if result.chain_problems:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def verify(
+    review_id: ReviewIdArgument, config: ConfigOption = None, as_json: JsonOption = False
+) -> None:
+    """Check every stored response and record against the run log. Exits 1 on any mismatch."""
+    try:
+        workspace = open_configured_workspace(config, os.environ)
+        result = verify_review(workspace, review_id, build_store(workspace, review_id))
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(result.as_dict(), as_json, lambda: _show_verify(result))
+    if result.problems:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def replay(
+    review_id: ReviewIdArgument, config: ConfigOption = None, as_json: JsonOption = False
+) -> None:
+    """Rederive every run's records from its stored responses, offline. Exits 1 if any differ."""
+    try:
+        configuration = load_configuration(config)
+        workspace = workspace_of(configuration, os.environ)
+        result = replay_review(
+            workspace,
+            review_id,
+            build_store(workspace, review_id),
+            build_sources(configuration),
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(result.as_dict(), as_json, lambda: _show_replay(result))
+    if not result.identical:
+        raise typer.Exit(code=1)
+
+
+def _show_verify(result: VerifyResult) -> None:
+    console.print(
+        Text.assemble(
+            "Review ",
+            (result.review_id, "bold"),
+            f": {result.runs} run(s) and {result.responses} stored response(s) checked.",
+        )
+    )
+    if result.problems:
+        console.print(Text("What is stored does not match the log:", style="bold red"))
+        for problem in result.problems:
+            console.print(Text(f"  - {problem}"))
+    else:
+        console.print(Text("Everything stored matches the log.", style="green"))
+
+
+def _show_replay(result: ReplayResult) -> None:
+    console.print(Text.assemble("Review ", (result.review_id, "bold"), ", replayed offline."))
+    if not result.runs:
+        console.print(Text("  No runs are stored yet."))
+    for run in result.runs:
+        replayed = "-" if run.replayed is None else str(run.replayed)
+        verdict = "identical" if run.identical else f"DIFFERENT: {run.problem}"
+        console.print(Text(f"  {run.run_id}  logged {run.logged}  replayed {replayed}  {verdict}"))
+    if result.runs and result.identical:
+        console.print(Text("Every run is reproduced from its stored responses.", style="green"))
 
 
 def _present(data: Mapping[str, object], as_json: bool, show: Callable[[], None]) -> None:

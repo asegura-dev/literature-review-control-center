@@ -2,11 +2,17 @@
 
 A search is two steps: ``esearch`` returns the count PubMed reports and the identifiers, and
 ``efetch`` returns the records for those identifiers, requested in batches.
+
+``efetch`` answers with two kinds of record: ``PubmedArticle`` for journal articles, and
+``PubmedBookArticle`` for books and book chapters. Both are read. The first real run reported
+2,499 records and retrieved 2,489, because only the first kind was read; the ten missing were
+book records (ADR-0013).
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from lrcc.adapters.http import HttpClient
@@ -50,7 +56,7 @@ class PubMedSource:
             limit: The most records to retrieve.
 
         Returns:
-            The count PubMed reported, and the records retrieved.
+            The count PubMed reported, the records retrieved, and the raw answers.
 
         Raises:
             NetworkError: If a request is refused or fails.
@@ -75,31 +81,48 @@ class PubMedSource:
                 [clean(found.findtext(".//ERROR")) or "no detail"],
             )
         identifiers = [clean(node.text) for node in found.findall("./IdList/Id")]
-        records: list[Record] = []
         for start in range(0, len(identifiers), BATCH):
             batch = identifiers[start : start + BATCH]
-            fetched = self._client.fetch(
-                EFETCH, {"db": "pubmed", "id": ",".join(batch), "retmode": "xml", "tool": TOOL}
+            responses.append(
+                self._client.fetch(
+                    EFETCH, {"db": "pubmed", "id": ",".join(batch), "retmode": "xml", "tool": TOOL}
+                )
             )
-            responses.append(fetched)
-            articles = parse_xml(fetched.body, "PubMed").findall("./PubmedArticle")
-            records.extend(_record(article) for article in articles)
         return SearchResult(
             source=self.name,
             query=query,
             reported=int(count),
-            records=tuple(records),
+            records=self.records_from([response.body for response in responses]),
             responses=tuple(responses),
         )
 
+    def records_from(self, bodies: Sequence[bytes]) -> tuple[Record, ...]:
+        """Derive the records from the raw answers of one search, in order.
 
-def _record(article: Element) -> Record:
-    identifier = clean(article.findtext("./MedlineCitation/PMID"))
-    details = article.find("./MedlineCitation/Article")
-    if not identifier or details is None:
-        raise SourceError("PubMed answered with an article that has no PMID or no details")
+        A search and a replay both derive their records here, so they cannot disagree.
+
+        Args:
+            bodies: The answers as received: the ``esearch`` answer first, then each ``efetch``.
+
+        Returns:
+            The records, in the order PubMed gave them.
+
+        Raises:
+            SourceError: If an answer cannot be read.
+        """
+        records = []
+        for body in bodies[1:]:
+            for node in parse_xml(body, "PubMed"):
+                if node.tag == "PubmedArticle":
+                    records.append(_article(node))
+                elif node.tag == "PubmedBookArticle":
+                    records.append(_book(node))
+        return tuple(records)
+
+
+def _authors(parent: Element | None) -> tuple[str, ...]:
     authors = []
-    for author in details.findall("./AuthorList/Author"):
+    for author in parent.findall("./AuthorList/Author") if parent is not None else []:
         last = clean(author.findtext("LastName"))
         fore = clean(author.findtext("ForeName"))
         name = (
@@ -107,28 +130,69 @@ def _record(article: Element) -> Record:
         )
         if name:
             authors.append(name)
-    date = details.find("./Journal/JournalIssue/PubDate")
-    year = _YEAR.search(full_text(date))
-    abstract = " ".join(full_text(part) for part in details.findall("./Abstract/AbstractText"))
-    return Record(
-        source=PubMedSource.name,
-        source_id=identifier,
-        title=full_text(details.find("ArticleTitle")),
-        authors=tuple(authors),
-        year=int(year.group()) if year else None,
-        doi=_doi(article, details),
-        abstract=abstract or None,
-    )
+    return tuple(authors)
 
 
-def _doi(article: Element, details: Element) -> str | None:
-    candidates = [
-        node
-        for node in article.findall("./PubmedData/ArticleIdList/ArticleId")
-        if node.get("IdType") == "doi"
-    ] + [node for node in details.findall("ELocationID") if node.get("EIdType") == "doi"]
+def _year(date: Element | None) -> int | None:
+    match = _YEAR.search(full_text(date))
+    return int(match.group()) if match else None
+
+
+def _abstract(parent: Element) -> str | None:
+    text = " ".join(full_text(part) for part in parent.findall("./Abstract/AbstractText"))
+    return text or None
+
+
+def _doi(*candidates: Element) -> str | None:
     for node in candidates:
         value = clean(node.text).lower()
         if value:
             return value
     return None
+
+
+def _article(article: Element) -> Record:
+    identifier = clean(article.findtext("./MedlineCitation/PMID"))
+    details = article.find("./MedlineCitation/Article")
+    if not identifier or details is None:
+        raise SourceError("PubMed answered with an article that has no PMID or no details")
+    return Record(
+        source=PubMedSource.name,
+        source_id=identifier,
+        title=full_text(details.find("ArticleTitle")),
+        authors=_authors(details),
+        year=_year(details.find("./Journal/JournalIssue/PubDate")),
+        doi=_doi(
+            *(
+                node
+                for node in article.findall("./PubmedData/ArticleIdList/ArticleId")
+                if node.get("IdType") == "doi"
+            ),
+            *(node for node in details.findall("ELocationID") if node.get("EIdType") == "doi"),
+        ),
+        abstract=_abstract(details),
+    )
+
+
+def _book(article: Element) -> Record:
+    """Read a book or a book chapter.
+
+    A chapter carries its own ``ArticleTitle`` and authors. A record for a whole book has
+    neither, so the book's title and authors are used.
+    """
+    document = article.find("./BookDocument")
+    identifier = clean(document.findtext("PMID")) if document is not None else ""
+    if document is None or not identifier:
+        raise SourceError("PubMed answered with a book record that has no PMID")
+    book = document.find("Book")
+    chapter_title = full_text(document.find("ArticleTitle"))
+    book_title = full_text(book.find("BookTitle")) if book is not None else ""
+    return Record(
+        source=PubMedSource.name,
+        source_id=identifier,
+        title=chapter_title or book_title,
+        authors=_authors(document) or _authors(book),
+        year=_year(book.find("PubDate") if book is not None else None),
+        doi=_doi(*(node for node in article.iter("ArticleId") if node.get("IdType") == "doi")),
+        abstract=_abstract(document),
+    )

@@ -35,6 +35,22 @@ def build_source(name: str, config: Config) -> ArxivSource | PubMedSource:
     return _SOURCES[name](HttpClient(config.network))
 
 
+def build_sources(config: Config) -> dict[str, ArxivSource | PubMedSource]:
+    """Build every source, over one HTTP client limited by the configuration.
+
+    A replay uses the sources only to derive records from stored answers, so nothing is
+    requested, whatever the network settings say.
+
+    Args:
+        config: The validated configuration.
+
+    Returns:
+        The sources, by name.
+    """
+    client = HttpClient(config.network)
+    return {name: source(client) for name, source in _SOURCES.items()}
+
+
 def build_store(workspace: Workspace, review_id: str) -> DuckDbReviewStore:
     """Build the storage of one review. Nothing is opened until the store is used.
 
