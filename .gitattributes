@@ -1,0 +1,5 @@
+# `lrcc init` copies the protocol template byte for byte into every new review, and prints the
+# copy's SHA-256 (ADR-0010). A checkout that rewrote its line endings would give the same version
+# of LRCC a different digest on Windows than on Linux: a fresh Windows clone was measured with a
+# CR on every one of its 55 lines. Git must keep it LF everywhere.
+src/lrcc/features/init/protocol-template.yaml text eol=lf

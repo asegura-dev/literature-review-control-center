@@ -1,5 +1,5 @@
 ---
-status: accepted (built in v0.0.1)
+status: accepted (built in v0.0.1; amended by ADR-0010)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -169,3 +169,12 @@ Both directions were seen to fail on the real package: a `domain` module importi
 and a logic-only function in a view, each named by the test. The output is in
 `docs/phases/v0.0.1.md`. Parametrized cases keep every inward rule and the outward rule proven
 to fail on each run.
+
+## Amendments
+
+- **ADR-0010 (2026-09-29, v0.1.0). The domain may import PyYAML, besides Pydantic and its
+  core.** Configuration and protocols are YAML. Parsing them is logic two slices share, and by
+  this record's own rule shared logic moves down into the domain.
+- **ADR-0010 (2026-09-29, v0.1.0). Views may import `domain`**, for the errors they catch and
+  the types features return. The Implementation section above anticipated this amendment. The
+  outward check still names any view function that does work without presenting it.

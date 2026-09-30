@@ -1,0 +1,105 @@
+<?xml version="1.0" ?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2025//EN" "https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_250101.dtd">
+<!-- SYNTHETIC fixture, written by hand for LRCC's tests. It holds no PubMed content: every
+     title, author, abstract, identifier and DOI is invented. Only the shape follows an efetch
+     answer that mixes a journal article with book records: a chapter, then a whole book. -->
+<PubmedArticleSet>
+  <PubmedBookArticle>
+    <BookDocument>
+      <PMID Version="1">90000003</PMID>
+      <ArticleIdList>
+        <ArticleId IdType="bookaccession">NBK0000003</ArticleId>
+      </ArticleIdList>
+      <Book>
+        <Publisher>
+          <PublisherName>Synthetic Fixture Press</PublisherName>
+          <PublisherLocation>Nowhere</PublisherLocation>
+        </Publisher>
+        <BookTitle book="synthbook">A Synthetic Book of Reviews</BookTitle>
+        <PubDate>
+          <Year>2020</Year>
+          <Month>06</Month>
+        </PubDate>
+        <AuthorList Type="editors" CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Editor</LastName>
+            <ForeName>Edith</ForeName>
+          </Author>
+        </AuthorList>
+      </Book>
+      <ArticleTitle book="synthbook" part="ch1">A synthetic chapter title.</ArticleTitle>
+      <Language>eng</Language>
+      <AuthorList Type="authors" CompleteYN="Y">
+        <Author ValidYN="Y">
+          <LastName>Chapter</LastName>
+          <ForeName>Charles</ForeName>
+        </Author>
+      </AuthorList>
+      <Abstract>
+        <AbstractText>An invented chapter abstract.</AbstractText>
+      </Abstract>
+    </BookDocument>
+    <PubmedBookData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">90000003</ArticleId>
+        <ArticleId IdType="doi">10.0000/SYNTHETIC.BOOK.1</ArticleId>
+      </ArticleIdList>
+    </PubmedBookData>
+  </PubmedBookArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">90000004</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <Year>2022</Year>
+            </PubDate>
+          </JournalIssue>
+          <Title>Journal of Synthetic Examples</Title>
+        </Journal>
+        <ArticleTitle>A synthetic journal article between two book records.</ArticleTitle>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Example</LastName>
+            <ForeName>Ada</ForeName>
+          </Author>
+        </AuthorList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">90000004</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedBookArticle>
+    <BookDocument>
+      <PMID Version="1">90000005</PMID>
+      <ArticleIdList>
+        <ArticleId IdType="bookaccession">NBK0000005</ArticleId>
+      </ArticleIdList>
+      <Book>
+        <Publisher>
+          <PublisherName>Synthetic Fixture Press</PublisherName>
+          <PublisherLocation>Nowhere</PublisherLocation>
+        </Publisher>
+        <BookTitle book="synthreport">A Synthetic Report, Recorded as a Whole Book</BookTitle>
+        <PubDate>
+          <Year>2018</Year>
+        </PubDate>
+        <AuthorList Type="authors" CompleteYN="Y">
+          <Author ValidYN="Y">
+            <CollectiveName>Synthetic Agency for Reports</CollectiveName>
+          </Author>
+        </AuthorList>
+      </Book>
+      <Language>eng</Language>
+    </BookDocument>
+    <PubmedBookData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">90000005</ArticleId>
+      </ArticleIdList>
+    </PubmedBookData>
+  </PubmedBookArticle>
+</PubmedArticleSet>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE eSearchResult PUBLIC "-//NLM//DTD esearch 20060628//EN" "https://eutils.ncbi.nlm.nih.gov/eutils/dtd/20060628/esearch.dtd">
+<!-- SYNTHETIC fixture, written by hand for LRCC's tests. It holds no PubMed content: the
+     identifiers are invented. Only the shape follows an esearch answer. -->
+<eSearchResult>
+  <Count>3</Count>
+  <RetMax>2</RetMax>
+  <RetStart>0</RetStart>
+  <IdList>
+    <Id>90000001</Id>
+    <Id>90000002</Id>
+  </IdList>
+</eSearchResult>

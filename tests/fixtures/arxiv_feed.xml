@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC fixture, written by hand for LRCC's tests. It holds no arXiv content: every
+     title, author, summary, identifier and DOI is invented. Only the shape follows the Atom feed
+     of the arXiv API. The identifiers use a month (9912) in which this identifier format did
+     not exist. -->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="html">ArXiv Query: a synthetic query</title>
+  <id>http://arxiv.org/api/synthetic</id>
+  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">57</opensearch:totalResults>
+  <opensearch:startIndex xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">0</opensearch:startIndex>
+  <opensearch:itemsPerPage xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">2</opensearch:itemsPerPage>
+  <entry>
+    <id>http://arxiv.org/abs/9912.00001v3</id>
+    <updated>2024-02-01T00:00:00Z</updated>
+    <published>2023-12-30T00:00:00Z</published>
+    <title>A synthetic preprint title
+  broken over two lines</title>
+    <summary>  An invented summary sentence.
+</summary>
+    <author>
+      <name>Ada Example</name>
+    </author>
+    <author>
+      <name>Grace Sample</name>
+    </author>
+    <arxiv:doi xmlns:arxiv="http://arxiv.org/schemas/atom">10.0000/SYNTHETIC.3</arxiv:doi>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/9912.00002v1</id>
+    <updated>2022-05-05T00:00:00Z</updated>
+    <published>2022-05-05T00:00:00Z</published>
+    <title>A second synthetic preprint, without a DOI</title>
+    <summary>Another invented summary sentence.</summary>
+    <author>
+      <name>Alan Specimen</name>
+    </author>
+  </entry>
+</feed>

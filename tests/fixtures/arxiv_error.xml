@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC fixture, written by hand for LRCC's tests. It follows the shape of the feed the
+     arXiv API returns, with HTTP 200, when it rejects a query. -->
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="html">ArXiv Query: a synthetic query</title>
+  <id>http://arxiv.org/api/synthetic</id>
+  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">1</opensearch:totalResults>
+  <entry>
+    <id>http://arxiv.org/api/errors#synthetic_error</id>
+    <title>Error</title>
+    <summary>a synthetic description of a malformed query</summary>
+  </entry>
+</feed>

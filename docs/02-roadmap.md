@@ -4,7 +4,17 @@ This chapter describes the route to v1.0 and the direction after it. Nearer phas
 
 ## Status
 
-This roadmap was written on 2026-09-28, before the first commit. The current phase is **v0.0.1, Scaffold**. On 2026-09-29 it was built on the branch `v0.0.1-scaffold`, where its gate is green locally on Windows. Two things remain before it is done: CI on Linux and Windows, observed after a push, and the maintainer's acceptance. What was run and observed is in [the phase notes](phases/v0.0.1.md). No capability exists yet.
+This roadmap was written on 2026-09-28, before the first commit.
+
+- **v0.0.1, Scaffold,** was built on 2026-09-29 and merged into `main` through pull request #1. Its gate is green in CI on Linux and Windows ([phase notes](phases/v0.0.1.md)).
+- **v0.1.0, Configuration, protocol and workspace,** was built on 2026-09-29, and its gate is green locally ([phase notes](phases/v0.1.0.md)). It delivers LRCC's first two commands, `lrcc init` and `lrcc validate`.
+- **v0.3.0, One HTTP client and the first two sources,** was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.3.0.md)). It delivers `lrcc search` for PubMed and arXiv.
+- **v0.7.0, Verify and replay, is the current phase.** It was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.7.0.md)). The maintainer accepted its decision record, ADR-0013, and ran its real scenario the same day: the two arXiv runs replayed as identical, and the PubMed run replayed with the ten book records the first adapter had dropped.
+- **v0.5.0, Stored runs,** was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.5.0.md)). `lrcc search` now stores a run, and `lrcc status` lists the runs and checks the log. The maintainer made the first real run the same day: arXiv reported 106 records for the example string, and run `0001-20260930T145901Z-arxiv` was stored with its counts and date. The phase waits for CI and the maintainer's acceptance.
+
+On 2026-09-29, ADR-0010 merged the v0.2.0 row into v0.1.0, because `init` needs the workspace boundary. The same record moved network settings and allowed hosts to v0.3.0, and secrets to v0.4.0, where the code that reads them arrives. Later version numbers did not change.
+
+On 2026-09-30, ADR-0011 merged the v0.4.0 row into v0.3.0, because an HTTP client with no source delivers nothing to run. The same record moved `work_id` and its catalog to v0.9.0, where deduplication first creates works, and secrets to v0.8.0, where Scopus is the first source that requires a key.
 
 On 2026-09-29 the nine founding decision records (ADR-0001 to ADR-0009) were drafted, and the maintainer accepted them the same day. Drafting them amended this chapter in five places:
 
@@ -23,15 +33,15 @@ Every version closes the same way. A decision record precedes the code. The code
 | Version | Capability | Done when |
 |---|---|---|
 | v0.0.1 | Scaffold: uv package (`src` layout); quality gate (ruff, strict mypy, pytest) in CI on Linux and Windows; pre-commit with gitleaks and a commit-msg hook that rejects AI attribution trailers; documentation system (chapters, guides including the development guide, ADRs); the nine founding ADRs decided; PRINCIPLES, VISION, LICENSE; `run.ps1` keeping the environment outside synchronised folders; layering tests in both directions, each seen to fail on purpose | the gate is green on an empty package |
-| v0.1.0 | Configuration and review protocol: a frozen `Config` loaded from YAML, network off by default, allowed hosts, secrets only from `.env`; the review protocol in YAML (search strings per source, INC/EXC codes, extraction schema) with its hash; `init` creates a review from the synthetic example template | an empty required value is a clear error, never a silent default |
-| v0.2.0 | Workspace with a boundary, outside any git working tree, holding `library/` and `reviews/<id>/` | a workspace inside a repository is refused, and so is a path that escapes the boundary |
-| v0.3.0 | One HTTP client with a host allowlist, retries and per-source rate limits; defusedxml; a frozen `Record`; a deterministic `work_id`, assigned once, with later identifiers kept as aliases in a workspace-level catalog (ADR-0006) | the gate fails if anything touches an unlisted host |
-| v0.4.0 | The source port with its two real cases, PubMed and arXiv, tested with recorded HTTP | `search` runs offline against fixtures |
-| v0.5.0 | DuckDB store, raw responses kept, hash-chained run log, `status` with Rich; the first real run of the first review | real counts are recorded with their date and query version |
+| v0.1.0 | Configuration, protocol and workspace (ADR-0010): a frozen `Config` loaded from YAML, named by `--config` or `LRCC_CONFIG`; the review protocol in YAML (search strings per source, INC/EXC codes, extraction schema) hashed over its exact bytes; a workspace with a boundary, outside any git working tree and any detectable synchronised folder, holding `library/` and `reviews/<id>/`; `lrcc init` and `lrcc validate`, with `--json` | an empty required value is a clear error, never a silent default; a workspace inside a repository is refused, and so is a path that escapes the boundary |
+| v0.2.0 | Merged into v0.1.0 (ADR-0010) | |
+| v0.3.0 | One HTTP client and the first two sources (ADR-0011): a host allowlist with a rate limit per host, retries, and the network off by default, all in the configuration; defusedxml; a frozen `Record`; the source port with its two real cases, PubMed and arXiv, tested against synthetic fixtures; `lrcc search`, a preview that stores nothing | the gate fails if anything but the one client can reach the network, and the client refuses an unlisted host before sending; `search` runs offline against fixtures |
+| v0.4.0 | Merged into v0.3.0 (ADR-0011) | |
+| v0.5.0 | Stored runs (ADR-0012): `lrcc search` stores each raw response with its digest, the records, and a hash-chained run log in a DuckDB database per review; `--preview` stores nothing; `lrcc status` lists the runs and verifies the chain; the first real run of the first review | real counts are recorded with their date and query version |
 | v0.6.0 | `check-query`: a search string against a gold set, per source | the string retrieves the whole gold set, or every gap is recorded with its reason |
-| v0.7.0 | `replay` and `verify` | a replay produces identical outputs; a re-run is documented as a different run |
-| v0.8.0 | Scopus and IEEE Xplore (by API if a key exists, by importing manual exports otherwise); the same import serves records found by other methods; ntfy for long runs | four sources unified; a long run says when it is done |
-| v0.9.0 | Exact and fuzzy deduplication, incremental, with a threshold measured on real data and a merge log | a new batch is deduplicated against what exists; fuzzy merges are confirmed by a person |
+| v0.7.0 | `verify` checks every stored response and record against the log; `replay` rederives every run's records from its stored responses, offline (ADR-0013); PubMed book records are read | a replay produces identical outputs; a re-run is documented as a different run |
+| v0.8.0 | Scopus and IEEE Xplore (by API if a key exists, by importing manual exports otherwise); secrets only from `.env`, for the first key a source requires; the same import serves records found by other methods; ntfy for long runs | four sources unified; a long run says when it is done |
+| v0.9.0 | Exact and fuzzy deduplication, incremental, with a threshold measured on real data and a merge log; a deterministic `work_id`, assigned once, with later identifiers kept as aliases in a workspace-level catalog (ADR-0006) | a new batch is deduplicated against what exists; fuzzy merges are confirmed by a person |
 | v0.10.0 | Title/abstract screening in the CLI: append-only, hash-chained decisions; an "uncertain" state; a pilot; versioned protocol amendments | correcting a decision adds an entry, never edits one |
 | v0.11.0 | Full-text retrieval: the list of texts to obtain, with known links (arXiv, PMC); a read-only `scan` (real PDF, size ceiling, SHA-256, provenance); "not retrieved" with a reason | nothing is moved or renamed: the command is suggested and a person runs it |
 | v0.12.0 | Full-text eligibility with coded reasons, bound to the digest of the PDF that was read | every exclusion has a reason and the exact document version |

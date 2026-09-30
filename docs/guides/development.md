@@ -25,6 +25,23 @@ ignored by git, but the synchroniser still sees it; delete it if it appears.
 On Linux or macOS, outside a synchronised folder, plain `uv` is fine. The same behaviour is
 available anywhere through `python scripts/uv_run.py <uv arguments>`.
 
+## A development workspace
+
+Manual runs use a development workspace holding synthetic data only, never a real review's.
+Like any workspace, it must be outside every git repository and outside OneDrive, or LRCC refuses
+it:
+
+```powershell
+New-Item -ItemType Directory C:\lrcc-dev\workspace
+Set-Content C:\lrcc-dev\config.yaml "workspace: C:\lrcc-dev\workspace"
+$env:LRCC_CONFIG = "C:\lrcc-dev\config.yaml"
+.\run.ps1 run lrcc init example
+.\run.ps1 run lrcc validate example
+```
+
+Tests never use it. They build temporary workspaces with pytest's `tmp_path`, and unset
+`LRCC_CONFIG`, so a variable set on your machine never decides a test's result.
+
 ## The quality gate
 
 Four commands, the same locally and in CI. A change is not done while any of them is red.

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (built in v0.5.0; amended by ADR-0012)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -122,3 +122,13 @@ Chosen option: **option 1**.
   database file written by an earlier version. A review must stay readable for years after its
   paper. The export to Parquet and the stored raw responses are the long-term record; the
   `.duckdb` file is a working store that can be rebuilt by replay.
+
+## Amendments
+
+- **ADR-0012 (2026-09-30, v0.5.0). There is a store port, with one implementation.** This record
+  said there would be none. A feature may not import an adapter (ADR-0003), and a feature that
+  saves a run needs a type for the store it is handed. The port is that typing seam. There is
+  still one storage engine and no fake store: tests use the real DuckDB implementation in a
+  temporary folder.
+- **The raw responses of a run** are stored under `reviews/<review_id>/runs/<run_id>/`, as this
+  record decided, named `response-NNNN.raw`.
