@@ -29,7 +29,8 @@ never deleted or rewritten.
 | [ADR-0009](ADR-0009-license.md) | MIT for everything in the repository | built in v0.0.1 |
 | [ADR-0010](ADR-0010-configuration-protocol-and-workspace.md) | Configuration, protocol and workspace in one phase, with `init` and `validate` | built in v0.1.0 |
 | [ADR-0011](ADR-0011-one-http-client-and-the-first-two-sources.md) | One HTTP client with an allowlist, PubMed and arXiv, and `lrcc search` | built in v0.3.0 |
-| [ADR-0012](ADR-0012-stored-runs-and-a-hash-chained-log.md) | A search is a stored run: raw responses, records and a hash-chained log | built in v0.5.0 |
+| [ADR-0012](ADR-0012-stored-runs-and-a-hash-chained-log.md) | A search is a stored run: raw responses, records and a hash-chained log | built in v0.5.0; amended by ADR-0016, proposed |
 | [ADR-0013](ADR-0013-verify-and-replay.md) | `verify` checks what is stored; `replay` rederives it offline; PubMed book records | built in v0.7.0 |
 | [ADR-0014](ADR-0014-checking-a-search-string-against-a-gold-set.md) | A search string is checked against a gold set, with coverage kept apart from misses | proposed; built in v0.7.0 |
 | [ADR-0015](ADR-0015-api-keys-scopus-and-ieee-xplore.md) | API keys from a `.env` beside the configuration, never recorded; Scopus and IEEE Xplore | proposed; built in v0.8.0 |
+| [ADR-0016](ADR-0016-importing-a-database-export-as-a-run.md) | A database's RIS export is imported as a run; amends ADR-0012 | proposed; built in v0.8.0 |
