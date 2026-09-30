@@ -44,8 +44,8 @@ of a DOI, a PMID or an arXiv identifier, and an optional note. Identifiers are n
 - DOIs lose any resolver prefix and are lowercased;
 - arXiv identifiers lose the `arXiv:` prefix and any version suffix.
 
-**An unquoted arXiv identifier is refused, not repaired.** YAML reads `2508.02104` as a number,
-and a number such as `2508.02100` would come back as `2508.021`, a different identifier. The
+**An unquoted arXiv identifier is refused, not repaired.** YAML reads `1501.00001` as a number,
+and a number such as `1501.00010` would come back as `1501.0001`, a different identifier. The
 error says to quote it.
 
 ### Two questions per work

@@ -131,8 +131,8 @@ def test_a_malformed_identifier_is_named(work: dict[str, object], expected: str)
 
 
 def test_an_unquoted_arxiv_identifier_is_refused_not_repaired() -> None:
-    """YAML reads 2508.02100 as the number 2508.021; guessing the zeros back would be a lie."""
-    text = b"format: 1\nworks:\n  - label: x\n    arxiv: 2508.02100\n"
+    """YAML reads 1501.00010 as the number 1501.0001; guessing the zero back would be a lie."""
+    text = b"format: 1\nworks:\n  - label: x\n    arxiv: 1501.00010\n"
     with pytest.raises(ReviewError) as caught:
         parse_gold_set(text, source="gold.yaml")
     (detail,) = caught.value.details
