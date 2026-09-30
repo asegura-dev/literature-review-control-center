@@ -1,5 +1,5 @@
 ---
-status: accepted (built in v0.0.1)
+status: accepted (built in v0.0.1; coverage threshold fixed in v0.1.0)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -199,3 +199,9 @@ because somebody will hit them later:
   required.
 - **Coverage** is reported, with no threshold, as decided. On the empty package it reads 100% of
   zero statements, which is exactly why no threshold was set yet.
+
+## Amendments
+
+- **v0.1.0 (2026-09-29).** The coverage threshold is fixed at **95%**
+  (`--cov-fail-under=95`), with the first real code, as this record decided. The suite stood at
+  98.9% when it was set. From here on, lowering it is weakening the gate.

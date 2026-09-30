@@ -13,15 +13,45 @@ stored response and a recorded decision. To get there, it:
 
 ## Status
 
-**v0.0.1, Scaffold: nothing is usable yet.** The package is empty by design. This version
-builds:
+**v0.1.0: a review can be created and its protocol checked. Nothing searches yet.** LRCC has
+two commands:
 
-- the quality gate (ruff, strict mypy, pytest) and pre-commit hooks;
-- CI on Linux and Windows;
-- the tests that enforce the architecture;
-- the founding decision records.
+- `lrcc init` creates a review in a workspace, with a protocol template to fill in;
+- `lrcc validate` checks the protocol and prints the SHA-256 to register.
 
-No command exists yet. The route to v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
+Searching arrives with the HTTP client and the first sources (v0.3.0 and v0.4.0). The route to
+v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
+
+## Try it
+
+LRCC needs [uv](https://docs.astral.sh/uv/).
+
+1. **Make an empty workspace folder.** It must be outside any git repository and outside
+   OneDrive, because it will hold licensed PDFs. LRCC refuses it otherwise.
+2. **Write a configuration file** that names the workspace, for example `C:\lrcc\config.yaml`:
+
+   ```yaml
+   workspace: C:\lrcc-workspace
+   ```
+
+3. **Run the two commands:**
+
+   ```powershell
+   uv sync
+   uv run lrcc init my-review --config C:\lrcc\config.yaml
+   uv run lrcc validate my-review --config C:\lrcc\config.yaml
+   ```
+
+   Set `LRCC_CONFIG` to that file's path to drop `--config`. Add `--json` to either command for
+   machine-readable output.
+
+   If the checkout lives in a synchronised folder on Windows, run `.\run.ps1` in place of `uv`.
+   The [development guide](docs/guides/development.md) explains why.
+
+`init` writes `reviews/my-review/protocol.yaml`, a synthetic example: replace it with your
+review's question, criteria, search strings and extraction fields. `validate` names every problem
+at once. When the protocol is valid, it prints the digest you register, on OSF for instance, so
+that anyone can check the search used that exact file.
 
 ## What LRCC will not do
 

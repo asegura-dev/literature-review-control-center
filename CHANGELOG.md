@@ -5,6 +5,56 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.1.0] - Unreleased
+
+The first commands: create a review and check its protocol, inside a workspace that refuses to
+expose what it holds.
+
+### Added
+
+- **`lrcc init REVIEW_ID`.** Creates `library/` and `reviews/<review_id>/protocol.yaml` in the
+  workspace, from a synthetic template, and prints the protocol's SHA-256. It never overwrites
+  an existing review (ADR-0010).
+- **`lrcc validate REVIEW_ID`.**
+  - It checks every field of the protocol and reports every problem in one pass, each located
+    by field.
+  - When the protocol is valid, it prints its criteria, sources, extraction fields and the
+    SHA-256 of the file's exact bytes: the digest to register.
+- **`--json` on both commands**, for results and errors alike (ADR-0005).
+- **Configuration.**
+  - It is a YAML file with one required field, `workspace`, which must be a non-empty absolute
+    path.
+  - It is named by `--config` or `LRCC_CONFIG`. There is no default location.
+  - Unknown fields are errors.
+- **Protocol format 1.**
+  - Its sections are the question with its framework, coded INC/EXC criteria, one search
+    string per known source (`pubmed`, `arxiv`, `scopus`, `ieee`) and extraction fields.
+  - Every field is required.
+  - It is parsed with `yaml.safe_load`, so a protocol cannot run code.
+- **The workspace boundary (ADR-0006).** LRCC refuses a workspace that:
+  - does not exist;
+  - is inside a git working tree;
+  - is under a folder named by the `OneDrive`, `OneDriveCommercial` or `OneDriveConsumer`
+    variables.
+
+  Every path is resolved before it is checked, so `..`, symlinks and junctions cannot lead
+  outside.
+- **Runtime dependencies:** pydantic, pyyaml, typer, rich (ADR-0010).
+
+### Changed
+
+- **Coverage threshold.** The gate now fails below 95% coverage, as ADR-0002 deferred to the
+  first real code.
+- **ADR-0003 amended by ADR-0010:**
+  - the domain may parse YAML;
+  - views may import domain types and errors.
+
+  The check that views decide nothing is unchanged.
+- **Roadmap:**
+  - v0.2.0 is merged into v0.1.0;
+  - network settings and allowed hosts move to v0.3.0;
+  - secrets move to v0.4.0.
+
 ## [0.0.1] - 2026-09-29
 
 The scaffold: an empty package, the gate that will judge everything added to it, and the decisions

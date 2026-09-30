@@ -19,11 +19,12 @@ never deleted or rewritten.
 | Record | Decision | Status |
 |---|---|---|
 | [ADR-0001](ADR-0001-lrcc-is-a-sibling-of-lacc.md) | LRCC is a sibling of LACC, coupled only by the review bundle | accepted |
-| [ADR-0002](ADR-0002-packaging-and-toolchain.md) | uv package, Python 3.12, the four-command gate, the environment outside the checkout | built in v0.0.1 |
-| [ADR-0003](ADR-0003-shared-hexagon-and-vertical-slices.md) | Shared hexagon, vertical slices, views that decide nothing, checked both ways | built in v0.0.1 |
+| [ADR-0002](ADR-0002-packaging-and-toolchain.md) | uv package, Python 3.12, the four-command gate, the environment outside the checkout | built in v0.0.1; coverage threshold in v0.1.0 |
+| [ADR-0003](ADR-0003-shared-hexagon-and-vertical-slices.md) | Shared hexagon, vertical slices, views that decide nothing, checked both ways | built in v0.0.1; amended by ADR-0010 |
 | [ADR-0004](ADR-0004-one-duckdb-database-per-review.md) | One DuckDB database per review, raw responses as files, no storage port | accepted |
 | [ADR-0005](ADR-0005-integration-by-contract.md) | Bundle, `--json` and `lrcc.api`; no listening port | accepted |
-| [ADR-0006](ADR-0006-workspace-library-and-work-id.md) | Workspace outside any repository, one folder per work, an immutable `work_id` and a work catalog | accepted |
+| [ADR-0006](ADR-0006-workspace-library-and-work-id.md) | Workspace outside any repository, one folder per work, an immutable `work_id` and a work catalog | boundary built in v0.1.0 |
 | [ADR-0007](ADR-0007-language-and-naming.md) | English for everything public; names; citing the version DOI | accepted |
 | [ADR-0008](ADR-0008-no-ai-co-authorship.md) | No AI co-authorship, enforced by hook and CI; disclosure in publications | built in v0.0.1 |
 | [ADR-0009](ADR-0009-license.md) | MIT for everything in the repository | built in v0.0.1 |
+| [ADR-0010](ADR-0010-configuration-protocol-and-workspace.md) | Configuration, protocol and workspace in one phase, with `init` and `validate` | built in v0.1.0 |

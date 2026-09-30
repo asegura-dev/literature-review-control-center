@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (workspace boundary built in v0.1.0)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -203,3 +203,16 @@ an incoming record is a work already in the library therefore needs one workspac
   LACC points its workspace at the same root.
 - Recommended for the maintainer's machine, not enforced by LRCC: a workspace under a local,
   unsynchronised path, backed up over the private network to hardware the user owns.
+
+## Implementation
+
+- **v0.1.0 built the location and layout rules** in `src/lrcc/domain/workspace.py`, and the
+  `review_id` rule in `src/lrcc/domain/identifiers.py`:
+  - a root inside a git working tree is refused, whether `.git` is a folder or a file;
+  - a root under a folder named by `OneDrive`, `OneDriveCommercial` or `OneDriveConsumer` is
+    refused;
+  - a root that does not exist is refused, never created;
+  - every path is resolved before the containment check, so `..`, symlinks and Windows junctions
+    cannot lead outside;
+  - `review_id` is limited to 40 characters of `[a-z0-9-]` in single-hyphen groups.
+- `work_id` and the work catalog remain for v0.3.0.
