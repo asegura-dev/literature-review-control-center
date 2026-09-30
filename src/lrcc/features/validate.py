@@ -9,8 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from lrcc.domain.errors import ProtocolError, ReviewError
-from lrcc.domain.protocol import parse_protocol, protocol_digest
+from lrcc.domain.reviews import load_review_protocol
 from lrcc.domain.workspace import Workspace
 
 
@@ -55,24 +54,12 @@ def validate_review(workspace: Workspace, review_id: str) -> ValidationResult:
         ProtocolError: If the protocol is invalid, listing every problem, or if it names another
             review than the folder it lives in.
     """
-    path = workspace.protocol_path(review_id)
-    if not path.is_file():
-        raise ReviewError(
-            f"review {review_id!r} has no protocol at {path}",
-            [f"create the review first with: lrcc init {review_id}"],
-        )
-    data = path.read_bytes()
-    protocol = parse_protocol(data, source=str(path))
-    if protocol.review_id != review_id:
-        raise ProtocolError(
-            f"{path} names the review {protocol.review_id!r}, but lives in the folder of"
-            f" {review_id!r}",
-            ["the review_id inside a protocol must match its folder"],
-        )
+    loaded = load_review_protocol(workspace, review_id)
+    protocol = loaded.protocol
     return ValidationResult(
         review_id=review_id,
-        protocol=path,
-        sha256=protocol_digest(data),
+        protocol=loaded.path,
+        sha256=loaded.sha256,
         title=protocol.title,
         inclusion=protocol.inclusion,
         exclusion=protocol.exclusion,

@@ -1,0 +1,74 @@
+<?xml version="1.0" ?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2025//EN" "https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_250101.dtd">
+<!-- SYNTHETIC fixture, written by hand for LRCC's tests. It holds no PubMed content: every
+     title, author, abstract, identifier and DOI is invented. Only the shape follows an efetch
+     answer. -->
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">90000001</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <Year>2021</Year>
+              <Month>Mar</Month>
+            </PubDate>
+          </JournalIssue>
+          <Title>Journal of Synthetic Examples</Title>
+        </Journal>
+        <ArticleTitle>A synthetic title with <i>inline markup</i>
+          broken over two lines.</ArticleTitle>
+        <Abstract>
+          <AbstractText Label="BACKGROUND">An invented background sentence.</AbstractText>
+          <AbstractText Label="RESULTS">An invented results sentence.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Example</LastName>
+            <ForeName>Ada</ForeName>
+            <Initials>A</Initials>
+          </Author>
+          <Author ValidYN="Y">
+            <CollectiveName>Synthetic Fixture Group</CollectiveName>
+          </Author>
+        </AuthorList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">90000001</ArticleId>
+        <ArticleId IdType="doi">10.0000/SYNTHETIC.1</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">90000002</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Internet">
+            <PubDate>
+              <MedlineDate>2019 Nov-Dec</MedlineDate>
+            </PubDate>
+          </JournalIssue>
+          <Title>Journal of Synthetic Examples</Title>
+        </Journal>
+        <ArticleTitle>A second synthetic title, without an abstract.</ArticleTitle>
+        <ELocationID EIdType="doi" ValidYN="Y">10.0000/synthetic.2</ELocationID>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Sample</LastName>
+            <ForeName>Grace</ForeName>
+            <Initials>G</Initials>
+          </Author>
+        </AuthorList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">90000002</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>

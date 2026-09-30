@@ -1,6 +1,6 @@
 [project]
 name = "literature-review-control-center"
-version = "0.1.0"
+version = "0.3.0"
 description = "Reproducible, auditable identification and screening for literature reviews."
 readme = "README.md"
 license = "MIT"
@@ -8,9 +8,12 @@ license-files = ["LICENSE"]
 authors = [{ name = "Alejandro Segura" }]
 requires-python = ">=3.12"
 dependencies = [
+    "defusedxml>=0.7.1",
+    "httpx>=0.28.1",
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
     "rich>=15.0.0",
+    "tenacity>=9.1.4",
     "typer>=0.27.2",
 ]
 
@@ -68,6 +71,8 @@ dev = [
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
+    "respx>=0.23.1",
     "ruff>=0.16.9",
+    "types-defusedxml>=0.7.0.20260504",
     "types-pyyaml>=6.0.12.20260906",
 ]

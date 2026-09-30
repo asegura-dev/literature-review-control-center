@@ -9,17 +9,26 @@ as Rich markup, so a title containing ``[bold]`` is printed as written.
 
 import json
 import os
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
 from rich.console import Console
+from rich.table import Table
 from rich.text import Text
 
 from lrcc.domain.errors import LrccError
-from lrcc.features.configuration import CONFIG_ENV, open_configured_workspace
+from lrcc.features.configuration import (
+    CONFIG_ENV,
+    load_configuration,
+    open_configured_workspace,
+    workspace_of,
+)
 from lrcc.features.init import InitResult, init_review
+from lrcc.features.search import SearchOutcome, search_review
 from lrcc.features.validate import ValidationResult, validate_review
+from lrcc.views.cli.composition import build_source
 
 app = typer.Typer(
     add_completion=False,
@@ -45,6 +54,21 @@ ConfigOption = Annotated[
     ),
 ]
 JsonOption = Annotated[bool, typer.Option("--json", help="Print the result as JSON.")]
+
+
+class SourceName(StrEnum):
+    """The sources ``lrcc search`` offers. A test keeps it equal to the adapters that exist."""
+
+    arxiv = "arxiv"
+    pubmed = "pubmed"
+
+
+SourceOption = Annotated[
+    SourceName, typer.Option("--source", help="The source to search.", show_default=False)
+]
+LimitOption = Annotated[
+    int, typer.Option("--limit", min=1, max=10000, help="The most records to retrieve.")
+]
 
 
 @app.command()
@@ -75,6 +99,56 @@ def validate(
         _echo_json(result.as_dict())
     else:
         _show_validation(result)
+
+
+@app.command()
+def search(
+    review_id: ReviewIdArgument,
+    source: SourceOption,
+    limit: LimitOption = 20,
+    config: ConfigOption = None,
+    as_json: JsonOption = False,
+) -> None:
+    """Run the protocol's search string on one source, as a preview. Nothing is stored."""
+    try:
+        configuration = load_configuration(config)
+        outcome = search_review(
+            workspace_of(configuration, os.environ),
+            review_id,
+            build_source(source.value, configuration),
+            limit,
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    if as_json:
+        _echo_json(outcome.as_dict())
+    else:
+        _show_search(outcome)
+
+
+def _show_search(outcome: SearchOutcome) -> None:
+    result = outcome.result
+    console.print(
+        Text.assemble(
+            (result.source, "bold"),
+            f" reports {result.reported} records for the search string of ",
+            (outcome.review_id, "bold"),
+            f"; {len(result.records)} retrieved.",
+        )
+    )
+    table = Table(show_lines=False)
+    for column in ("id", "year", "first author", "title"):
+        table.add_column(column)
+    for record in result.records:
+        table.add_row(
+            Text(record.source_id),
+            Text(str(record.year) if record.year else "-"),
+            Text(record.authors[0] if record.authors else "-"),
+            Text(record.title),
+        )
+    if result.records:
+        console.print(table)
+    console.print(Text("Nothing was stored: this is a preview, not a run.", style="yellow"))
 
 
 def _show_init(result: InitResult) -> None:

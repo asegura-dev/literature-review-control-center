@@ -44,6 +44,14 @@ class ReviewError(LrccError):
     """A review id is invalid, or the review is not where it should be."""
 
 
+class NetworkError(LrccError):
+    """A request was refused before it was sent, or a host did not answer (ADR-0011)."""
+
+
+class SourceError(LrccError):
+    """A source answered with something LRCC cannot read as records."""
+
+
 def describe_validation(error: ValidationError) -> list[str]:
     """Turn a Pydantic validation error into one plain line per problem.
 

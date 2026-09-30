@@ -1,18 +1,22 @@
-"""The configuration: what LRCC needs to know about this machine, validated once (ADR-0010).
+"""The configuration: what LRCC needs to know about this machine, validated once.
 
-It holds one field for now, the workspace. Network settings, allowed hosts and secrets arrive
-with the code that reads them (v0.3.0 and v0.4.0), so no setting exists that nothing checks.
+It names the workspace (ADR-0010) and, when searching is wanted, the network settings: whether
+requests are allowed at all, and the only hosts that may be contacted, each with the pause to
+leave between two requests to it (ADR-0011). The network is off unless the file turns it on.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, ValidationError
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from lrcc.domain.documents import Text, load_mapping
 from lrcc.domain.errors import ConfigError, describe_validation
+
+_HOST = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)*")
 
 
 def _absolute(value: str) -> str:
@@ -23,12 +27,39 @@ def _absolute(value: str) -> str:
     return value
 
 
-class Config(BaseModel):
-    """A validated configuration. Unknown fields are errors, so a misspelt setting is caught."""
-
+class _Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+
+class HostConfig(_Frozen):
+    """One allowed host, and the seconds to leave between two requests to it."""
+
+    min_interval: Annotated[float, Field(ge=0)]
+
+
+class NetworkConfig(_Frozen):
+    """Whether requests are allowed, and the only hosts that may be contacted."""
+
+    enabled: bool = False
+    hosts: dict[str, HostConfig] = Field(default_factory=dict)
+
+    @field_validator("hosts")
+    @classmethod
+    def _hosts_are_bare_names(cls, hosts: dict[str, HostConfig]) -> dict[str, HostConfig]:
+        bad = sorted(host for host in hosts if not _HOST.fullmatch(host))
+        if bad:
+            raise ValueError(
+                f"{', '.join(bad)}: a host is a lowercase name such as export.arxiv.org,"
+                " without a scheme, a port or a path"
+            )
+        return hosts
+
+
+class Config(_Frozen):
+    """A validated configuration. Unknown fields are errors, so a misspelt setting is caught."""
+
     workspace: Annotated[Text, AfterValidator(_absolute)]
+    network: NetworkConfig = Field(default_factory=NetworkConfig)
 
     @property
     def workspace_path(self) -> Path:
