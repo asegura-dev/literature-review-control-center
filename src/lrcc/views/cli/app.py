@@ -20,6 +20,7 @@ from rich.table import Table
 from rich.text import Text
 
 from lrcc.domain.errors import LrccError
+from lrcc.features.check_query import CheckResult, GoldState, check_query
 from lrcc.features.configuration import (
     CONFIG_ENV,
     load_configuration,
@@ -218,6 +219,57 @@ def _show_replay(result: ReplayResult) -> None:
         console.print(Text(f"  {run.run_id}  logged {run.logged}  replayed {replayed}  {verdict}"))
     if result.runs and result.identical:
         console.print(Text("Every run is reproduced from its stored responses.", style="green"))
+
+
+@app.command("check-query")
+def check_query_command(
+    review_id: ReviewIdArgument,
+    source: SourceOption,
+    config: ConfigOption = None,
+    as_json: JsonOption = False,
+) -> None:
+    """Test the protocol's string against the gold set. Exits 1 if it misses an indexed work."""
+    try:
+        configuration = load_configuration(config)
+        result = check_query(
+            workspace_of(configuration, os.environ),
+            review_id,
+            build_source(source.value, configuration),
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(result.as_dict(), as_json, lambda: _show_check(result))
+    if not result.complete:
+        raise typer.Exit(code=1)
+
+
+def _show_check(result: CheckResult) -> None:
+    console.print(
+        Text.assemble(
+            "Gold set of ",
+            (result.review_id, "bold"),
+            f": {len(result.checks)} work(s) checked against the {result.source} string.",
+        )
+    )
+    for state, meaning in (
+        (GoldState.retrieved, "the string finds them"),
+        (GoldState.missed, "indexed, but the string misses them"),
+        (GoldState.not_indexed, f"not held by {result.source}: coverage, not the string"),
+        (GoldState.unknown, f"no identifier {result.source} can look up"),
+    ):
+        console.print(Text(f"  {result.count(state):>3}  {state.value:<12} {meaning}"))
+    for state in (GoldState.missed, GoldState.not_indexed, GoldState.unknown):
+        works = [check.work for check in result.checks if check.state is state]
+        if works:
+            console.print(Text(f"{state.value.capitalize()}:", style="bold"))
+            for work in works:
+                console.print(Text(f"  - {work.label}  ({work.identifiers})"))
+    if result.complete:
+        console.print(
+            Text("The string retrieves every gold work this source holds.", style="green")
+        )
+    else:
+        console.print(Text("The string misses gold works this source holds.", style="bold red"))
 
 
 def _present(data: Mapping[str, object], as_json: bool, show: Callable[[], None]) -> None:
