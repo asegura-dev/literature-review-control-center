@@ -14,8 +14,8 @@ stored response and a recorded decision. To get there, it:
 ## Status
 
 **v0.5.0: a review can be created, its protocol checked, and its search strings run on PubMed
-and arXiv as stored runs. It has been tested against synthetic answers only: no real search has
-been run yet.** LRCC has four commands:
+and arXiv as stored runs. It has been run against both real services, on small result sets
+only.** LRCC has four commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;
 - `lrcc validate` checks the protocol and prints the SHA-256 to register;

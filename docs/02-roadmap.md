@@ -9,7 +9,7 @@ This roadmap was written on 2026-09-28, before the first commit.
 - **v0.0.1, Scaffold,** was built on 2026-09-29 and merged into `main` through pull request #1. Its gate is green in CI on Linux and Windows ([phase notes](phases/v0.0.1.md)).
 - **v0.1.0, Configuration, protocol and workspace,** was built on 2026-09-29, and its gate is green locally ([phase notes](phases/v0.1.0.md)). It delivers LRCC's first two commands, `lrcc init` and `lrcc validate`.
 - **v0.3.0, One HTTP client and the first two sources,** was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.3.0.md)). It delivers `lrcc search` for PubMed and arXiv.
-- **v0.5.0, Stored runs, is the current phase.** It was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.5.0.md)). `lrcc search` now stores a run, and `lrcc status` lists the runs and checks the log. **The phase is not done:** its criterion is real counts recorded from a real run, and no real search has been run yet. That run is the maintainer's step.
+- **v0.5.0, Stored runs, is the current phase.** It was built on 2026-09-30, and its gate is green locally ([phase notes](phases/v0.5.0.md)). `lrcc search` now stores a run, and `lrcc status` lists the runs and checks the log. The maintainer made the first real run the same day: arXiv reported 106 records for the example string, and run `0001-20260930T145901Z-arxiv` was stored with its counts and date. The phase waits for CI and the maintainer's acceptance.
 
 On 2026-09-29, ADR-0010 merged the v0.2.0 row into v0.1.0, because `init` needs the workspace boundary. The same record moved network settings and allowed hosts to v0.3.0, and secrets to v0.4.0, where the code that reads them arrives. Later version numbers did not change.
 
