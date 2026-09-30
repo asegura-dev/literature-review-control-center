@@ -11,9 +11,10 @@ exists; where something is still planned, it says so. The decisions behind it ar
 
 ## Status
 
-As of v0.7.0 every layer holds code. There are two ports: the source port, with PubMed and
-arXiv behind it, and the store port, with DuckDB behind it. Every request goes through one
-HTTP client.
+As of v0.8.0 every layer holds code. There are two ports: the source port, with PubMed, arXiv,
+Scopus and IEEE Xplore behind it, and the store port, with DuckDB behind it. Every request goes
+through one HTTP client. A search can also enter a review as a database's RIS export, imported
+as a run.
 
 ## The layout
 
@@ -29,19 +30,22 @@ src/lrcc/
 │   ├── reviews.py      read a review's protocol from the workspace
 │   ├── record.py       Record, RawResponse and SearchResult: what a source said
 │   ├── runs.py         Run, and the hash chain of the run log
-│   └── gold.py         GoldSet: works known to be relevant, and their identifiers
+│   ├── ris.py          the RIS reader: a database's export into records
+│   ├── gold.py         GoldSet: works known to be relevant, and their identifiers
+│   └── secrets.py      API keys from the .env beside the configuration, never shown
 ├── ports/
 │   ├── source.py       the source port: a query and a limit in, a SearchResult out
 │   └── store.py        the store port: the run log, records and raw responses
 ├── adapters/
 │   ├── http.py         the one HTTP client: allowlist, rate limit, retries
-│   ├── sources/        pubmed.py, arxiv.py, and safe_xml.py (defusedxml)
+│   ├── sources/        pubmed.py, arxiv.py, ieee.py, scopus.py; safe_xml.py, safe_json.py
 │   └── storage/        duckdb_store.py: one database per review, responses as files
 ├── features/
 │   ├── configuration.py  read the configuration, open its workspace
 │   ├── init/             create a review from the synthetic protocol template
 │   ├── validate.py       check a protocol and report its digest
 │   ├── search.py         run the protocol's string on one source: a stored run, or a preview
+│   ├── imports.py        store a database's RIS export of the string as a run
 │   ├── status.py         list a review's runs and verify its log
 │   ├── check_query.py    test a string against the gold set: retrieved, missed, not indexed
 │   ├── verify.py         check every stored response and record against the log
@@ -104,6 +108,19 @@ exemptions:
 - the entry point, `main`;
 - the `composition` module.
 
+## API keys
+
+Keys come from the `.env` in the folder that holds the configuration file, and from nowhere
+else; a variable already set in the environment wins (ADR-0015). A source asks for its key
+only when it makes a request, so a replay, which makes none, needs no key.
+
+The one HTTP client keeps keys out of everything LRCC stores:
+
+- a key sent as a query parameter is recorded as `[redacted]`;
+- a key sent as a header is not recorded at all;
+- an answer that repeats a key is refused, because a stored answer is kept byte for byte;
+- the start of an error answer is quoted with every key replaced.
+
 ## What enforces it
 
 `tests/test_layering.py` reads every module with `ast`, without importing it, and checks:
@@ -148,6 +165,17 @@ read, so a replay that differs from its run means the code changed since (ADR-00
 
 `lrcc verify` asks the other question: whether the files and the records on disk are still
 the ones the log describes. Neither command writes anything.
+
+## An import is a run too
+
+When a search goes through a database's web interface, `lrcc import` stores the RIS files it
+exported as a run (ADR-0016). Each file is stored like an answer, in the same log, and the entry
+adds the day of the search. `replay` reads those files with the RIS reader in `domain/ris.py`,
+the same code the import used. The reader sits in the domain because two features use it, and
+a feature never imports another.
+
+A field added to the log entry after v0.7.0 is optional, and is left out while empty. The
+entries of earlier versions keep their canonical form, and their chain still verifies.
 
 ## Planned
 

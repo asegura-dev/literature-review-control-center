@@ -13,9 +13,11 @@ stored response and a recorded decision. To get there, it:
 
 ## Status
 
-**v0.7.0: a review can be created, its protocol checked, its search strings run on PubMed and
-arXiv as stored runs, and those runs verified and replayed offline. It has been run against
-both real services on a synthetic example protocol, not yet on a real review.** LRCC has seven
+**v0.8.0: a review can be created and its protocol checked. Its search strings can be run on
+PubMed, arXiv, Scopus and IEEE Xplore as stored runs, or imported from a database's RIS
+export, and those runs verified and replayed offline. PubMed and arXiv have been run against
+the real services, and Scopus has answered a real gold check. IEEE Xplore, whose key awaits
+approval, and the import have been tested against synthetic data only.** LRCC has eight
 commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;
@@ -23,6 +25,8 @@ commands:
 - `lrcc search` runs the protocol's search string on one source and stores the run: every raw
   response with its digest, the records, and an entry in a hash-chained log. With `--preview`
   it stores nothing;
+- `lrcc import` stores, as a run, the RIS files a database's web interface exported for the
+  protocol's string, for a search the API cannot make;
 - `lrcc status` lists a review's runs and checks that its log was not edited;
 - `lrcc verify` checks every stored response and record against the log;
 - `lrcc replay` rederives every run's records from its stored responses, without the network.
@@ -38,57 +42,40 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
 
 1. **Make an empty workspace folder.** It must be outside any git repository and outside
    OneDrive, because it will hold licensed PDFs. LRCC refuses it otherwise.
-2. **Write a configuration file** that names the workspace, for example `C:\lrcc\config.yaml`:
-
-   ```yaml
-   workspace: C:\lrcc-workspace
-   ```
-
-3. **Run the two commands:**
+2. **Copy `config.example.yaml` to `config.yaml`** and set `workspace` to that folder. Git
+   ignores `config.yaml`. To search, set `network.enabled` to `true`; LRCC contacts only the hosts
+   listed there, and `min_interval` is the pause, in seconds, between two requests to one host.
+3. **For Scopus or IEEE Xplore, copy `.env.example` to `.env`**, in the same folder as
+   `config.yaml`, and fill in the keys you have. Git ignores `.env`, and LRCC reads keys from
+   there only. PubMed and arXiv need no key.
+4. **Run the commands:**
 
    ```powershell
    uv sync
-   uv run lrcc init my-review --config C:\lrcc\config.yaml
-   uv run lrcc validate my-review --config C:\lrcc\config.yaml
+   $env:LRCC_CONFIG = "config.yaml"
+   uv run lrcc init my-review
+   uv run lrcc validate my-review
+   uv run lrcc check-query my-review --source pubmed
+   uv run lrcc search my-review --source arxiv --preview
+   uv run lrcc search my-review --source arxiv
+   uv run lrcc import my-review scopus.ris --source scopus --searched 2026-09-30 --reported 480
+   uv run lrcc status my-review
+   uv run lrcc verify my-review
+   uv run lrcc replay my-review
    ```
 
-   Set `LRCC_CONFIG` to that file's path to drop `--config`. Add `--json` to either command for
-   machine-readable output.
+   `init` writes `reviews/my-review/protocol.yaml`, a synthetic example: replace it with your
+   review's question, criteria, search strings and extraction fields. `validate` names every
+   problem at once, and prints the digest you register, on OSF for instance. `check-query` tests
+   a string against a `gold.yaml` of works you know are relevant. `search --preview` shows what a
+   string returns and stores nothing; without `--preview` it stores a run. `import` stores a
+   run from the RIS file a database exported when you ran the same string in its web interface,
+   with the day of that search and the count it reported. `status` lists the runs, `verify`
+   checks the stored files against the log, and `replay` rederives the records from those
+   files, offline. Every command takes `--json`.
 
    If the checkout lives in a synchronised folder on Windows, run `.\run.ps1` in place of `uv`.
    The [development guide](docs/guides/development.md) explains why.
-
-4. **To search, turn the network on** in the configuration, and name the hosts LRCC may
-   contact. It contacts no others:
-
-   ```yaml
-   workspace: C:\lrcc-workspace
-   network:
-     enabled: true
-     hosts:
-       eutils.ncbi.nlm.nih.gov: {min_interval: 0.4}
-       export.arxiv.org: {min_interval: 3.0}
-   ```
-
-   ```powershell
-   uv run lrcc search my-review --source arxiv --preview --config C:\lrcc\config.yaml
-   uv run lrcc search my-review --source arxiv --config C:\lrcc\config.yaml
-   uv run lrcc status my-review --config C:\lrcc\config.yaml
-   uv run lrcc verify my-review --config C:\lrcc\config.yaml
-   uv run lrcc replay my-review --config C:\lrcc\config.yaml
-   ```
-
-   The first line previews what the string returns and stores nothing. The second stores a
-   run. The third lists the runs. The fourth checks the stored files against the log. The
-   fifth rederives the records from the stored files, offline.
-
-   `min_interval` is the pause, in seconds, between two requests to that host. The values
-   above follow each service's published limits.
-
-`init` writes `reviews/my-review/protocol.yaml`, a synthetic example: replace it with your
-review's question, criteria, search strings and extraction fields. `validate` names every problem
-at once. When the protocol is valid, it prints the digest you register, on OSF for instance, so
-that anyone can check the search used that exact file.
 
 ## What LRCC will not do
 

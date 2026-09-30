@@ -5,6 +5,55 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.8.0] - Unreleased
+
+Scopus and IEEE Xplore join PubMed and arXiv, through API keys that LRCC uses and never keeps,
+or through the RIS files their web interfaces export.
+
+### Added
+
+- **`lrcc import REVIEW_ID FILE... --source NAME --searched YYYY-MM-DD --reported N`.** It stores
+  the RIS files a database exported for the protocol's string as a run (ADR-0016). Use it when a
+  search cannot go through the API: a key awaiting approval, or abstracts granted only through
+  the database's own interface.
+  - Each file is kept byte for byte, in the same hash-chained log, so `status`, `verify` and
+    `replay` treat the run like any other.
+  - The run records the day of the search and the count the database reported. It is marked
+    incomplete when the files hold fewer records.
+  - A file already stored in the review is refused, and so is a file that is not RIS or ends
+    inside a record.
+- **Two sources, Scopus and IEEE Xplore.** `search` (stored or `--preview`), `check-query` and
+  `replay` work with all four sources (ADR-0015).
+  - IEEE Xplore uses the Metadata Search API, 200 records per call. It does not retry a refusal,
+    because the free key allows 200 calls a day.
+  - Scopus uses the Scopus Search API in the COMPLETE view, for abstracts, with cursor paging.
+    The key and the institutional token go in headers.
+- **API keys from a `.env` beside the configuration file**, and from nowhere else. The real
+  environment wins over the file. Only `SCOPUS_API_KEY`, `SCOPUS_INSTTOKEN`, `IEEE_API_KEY` and
+  `NCBI_API_KEY` are read. A missing key is reported by its name and the file that should hold it.
+  `NCBI_API_KEY`, if set, raises PubMed's rate limit.
+- **Keys are never kept.** In detail:
+  - a key sent as a query parameter is recorded as `[redacted]`;
+  - a key sent as a header is not recorded at all;
+  - an answer that repeats a key is refused;
+  - error quotes are scrubbed;
+  - the object holding the keys prints only their names.
+- **`config.example.yaml` and `.env.example`**, versioned without any personal value.
+
+### Fixed
+
+- **The reported count of a paged search** is now the count from the first page. A later page,
+  and above all the last, can report something else, and one test saw Scopus's last page report
+  zero.
+
+### Changed
+
+- **A person's configuration sits beside their `.env`.** Git ignores `config*` at the root of the
+  repository, except the example.
+- **A run may record that it was imported** (ADR-0016, amending ADR-0012). The field is left out
+  of a search's log entry, so every entry written by earlier versions still verifies.
+- **`status --json` gives each run's `searched_on` day**, and says whether the run was `imported`.
+
 ## [0.7.0] - Unreleased
 
 What a review stores can be checked against its log, and every run can be reproduced from its

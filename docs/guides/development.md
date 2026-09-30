@@ -25,16 +25,25 @@ ignored by git, but the synchroniser still sees it; delete it if it appears.
 On Linux or macOS, outside a synchronised folder, plain `uv` is fine. The same behaviour is
 available anywhere through `python scripts/uv_run.py <uv arguments>`.
 
+## API keys
+
+Keys live in a `.env` beside your configuration file, which git ignores (ADR-0015). Never paste a
+key into an issue, a commit or a chat. Tests never read a real `.env`: every test's configuration
+lives in a temporary folder, and a fixture in `tests/conftest.py` removes the four key variables
+from the environment of every test. A test that needs a key writes a fake one. The first real
+request with a key is made by the person who owns it.
+
 ## A development workspace
 
 Manual runs use a development workspace holding synthetic data only, never a real review's.
 Like any workspace, it must be outside every git repository and outside OneDrive, or LRCC refuses
-it:
+it. Put it in your user profile: on Windows, folders at the root of `C:\` are readable, and even
+writable, by every account on the machine.
 
 ```powershell
-New-Item -ItemType Directory C:\lrcc-dev\workspace
-Set-Content C:\lrcc-dev\config.yaml "workspace: C:\lrcc-dev\workspace"
-$env:LRCC_CONFIG = "C:\lrcc-dev\config.yaml"
+New-Item -ItemType Directory $env:USERPROFILE\lrcc-dev\workspace
+Set-Content $env:USERPROFILE\lrcc-dev\config.yaml "workspace: $env:USERPROFILE\lrcc-dev\workspace"
+$env:LRCC_CONFIG = "$env:USERPROFILE\lrcc-dev\config.yaml"
 .\run.ps1 run lrcc init example
 .\run.ps1 run lrcc validate example
 ```
