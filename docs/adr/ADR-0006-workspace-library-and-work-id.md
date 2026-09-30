@@ -215,4 +215,6 @@ an incoming record is a work already in the library therefore needs one workspac
   - every path is resolved before the containment check, so `..`, symlinks and Windows junctions
     cannot lead outside;
   - `review_id` is limited to 40 characters of `[a-z0-9-]` in single-hyphen groups.
-- `work_id` and the work catalog remain for v0.3.0.
+- `work_id` and the work catalog were planned for v0.3.0. ADR-0011 moved them to v0.9.0,
+  because works first exist when records are deduplicated. Where this record says "from
+  v0.3.0" about `work_id` or the catalog, read v0.9.0.
