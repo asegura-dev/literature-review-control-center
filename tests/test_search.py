@@ -174,7 +174,7 @@ def test_a_source_error_is_reported_as_data_with_json(
 
 def test_an_unknown_source_is_a_usage_error(review: Callable[..., str]) -> None:
     """Only sources with an adapter are offered."""
-    result = lrcc("search", "example", "--preview", "--source", "scopus", "--config", review())
+    result = lrcc("search", "example", "--preview", "--source", "embase", "--config", review())
     assert result.exit_code == 2
 
 

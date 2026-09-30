@@ -15,6 +15,7 @@ from lrcc.adapters.sources.safe_xml import clean, full_text, parse_xml
 from lrcc.domain.errors import SourceError
 from lrcc.domain.gold import GoldWork
 from lrcc.domain.record import Record, SearchResult
+from lrcc.domain.secrets import NO_SECRETS, Secrets
 
 if TYPE_CHECKING:
     from xml.etree.ElementTree import Element
@@ -37,11 +38,12 @@ class ArxivSource:
 
     name = "arxiv"
 
-    def __init__(self, client: HttpClient) -> None:
+    def __init__(self, client: HttpClient, secrets: Secrets = NO_SECRETS) -> None:
         """Create the source.
 
         Args:
             client: The program's HTTP client.
+            secrets: Accepted so every source is built alike; arXiv needs no key.
         """
         self._client = client
 
@@ -61,6 +63,7 @@ class ArxivSource:
         """
         responses = []
         retrieved = 0
+        reported: int | None = None
         while True:
             page = self._client.fetch(
                 API,
@@ -71,7 +74,10 @@ class ArxivSource:
                 },
             )
             responses.append(page)
-            reported, entries = _page(page.body)
+            count, entries = _page(page.body)
+            # The count is the one the source reported when the search began: a later page
+            # may report something else, and the last one sometimes reports nothing at all.
+            reported = count if reported is None else reported
             retrieved += len(entries)
             # An empty page ends the loop even if arXiv reported more than it delivers.
             if not entries or retrieved >= min(limit, reported):

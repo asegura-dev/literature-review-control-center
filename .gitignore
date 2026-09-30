@@ -19,6 +19,10 @@ htmlcov/
 
 # LRCC: secrets and review material must never be committed (PRINCIPLES 6 and 8).
 .env
+# A person's configuration sits beside their .env (ADR-0015) and names their workspace.
+# Only the example is versioned.
+/config*
+!/config.example.yaml
 *.duckdb
 *.duckdb.wal
 *.pdf

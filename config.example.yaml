@@ -1,0 +1,19 @@
+# LRCC configuration: an example.
+#
+# Copy this file to config.yaml, which git ignores, and point LRCC at it with --config or the
+# LRCC_CONFIG environment variable. API keys never go here: they go in a .env file in the same
+# folder as this configuration (see .env.example), and LRCC reads them from there only.
+
+# The workspace holds reviews and, later, the library of full texts. It must be an existing
+# folder outside every git repository and outside OneDrive; LRCC refuses it otherwise.
+workspace: C:\Users\you\lrcc-workspace
+
+# The network is off unless enabled is true. LRCC contacts only the hosts listed here, and waits
+# min_interval seconds between two requests to the same host.
+network:
+  enabled: false
+  hosts:
+    eutils.ncbi.nlm.nih.gov: {min_interval: 0.4}   # PubMed: three requests a second without a key
+    export.arxiv.org: {min_interval: 3.0}          # arXiv: one request every three seconds
+    ieeexploreapi.ieee.org: {min_interval: 0.5}    # IEEE Xplore: needs IEEE_API_KEY
+    api.elsevier.com: {min_interval: 0.5}          # Scopus: needs SCOPUS_API_KEY

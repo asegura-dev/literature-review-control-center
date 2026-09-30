@@ -1,0 +1,29 @@
+TY  - CONF
+TI  - A synthetic IEEE Xplore title
+T2  - 2020 Synthetic Conference on Examples
+SP  - 1
+EP  - 5
+AU  - A. Example
+AU  - B. Sample
+PY  - 2020
+KW  - synthetic
+DO  - 10.0000/SYNTHETIC.IEEE.1
+JO  - 2020 Synthetic Conference on Examples
+IS  -
+SN  -
+VO  -
+VL  -
+JA  - 2020 Synthetic Conference on Examples
+Y1  - 1-5 June 2020
+AB  - An invented IEEE Xplore abstract.
+N1  - Synthetic: written by hand for LRCC's tests. Every title, author, abstract and DOI is invented; only the shape is modelled on an IEEE Xplore RIS export.
+ER  -
+
+TY  - JOUR
+TI  - A synthetic IEEE Xplore record with no DOI
+T2  - Transactions on Synthetic Examples
+AU  - C. Specimen
+Y1  - 2019
+AB  - Another invented IEEE Xplore abstract.
+N1  - Synthetic: written by hand for LRCC's tests. Every title, author, abstract and DOI is invented; only the shape is modelled on an IEEE Xplore RIS export.
+ER  -

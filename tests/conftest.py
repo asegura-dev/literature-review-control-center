@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from lrcc.domain.secrets import KNOWN
+
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
@@ -24,6 +26,17 @@ def no_real_network(monkeypatch: pytest.MonkeyPatch) -> None:
         raise AssertionError("a test tried to open a real network connection")
 
     monkeypatch.setattr(socket.socket, "connect", refuse)
+
+
+@pytest.fixture(autouse=True)
+def no_real_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Remove every key LRCC reads from the environment, for every test.
+
+    A key exported in a developer's shell never reaches a test. Tests that need a key write a
+    fake one into a temporary ``.env``.
+    """
+    for name in KNOWN:
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture

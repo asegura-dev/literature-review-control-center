@@ -7,14 +7,25 @@ the ``LRCC_CONFIG`` environment variable; with neither, LRCC stops and says so.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 
 from lrcc.domain.config import Config, parse_config
 from lrcc.domain.errors import ConfigError
+from lrcc.domain.secrets import Secrets, load_secrets
 from lrcc.domain.workspace import Workspace, open_workspace
 
 #: The environment variable that may name the configuration file.
 CONFIG_ENV = "LRCC_CONFIG"
+
+
+def _named(config_path: Path | None) -> Path:
+    if config_path is None:
+        raise ConfigError(
+            "no configuration file was given",
+            [f"pass --config PATH, or set {CONFIG_ENV} to the path of your configuration file"],
+        )
+    return config_path
 
 
 def load_configuration(config_path: Path | None) -> Config:
@@ -29,11 +40,7 @@ def load_configuration(config_path: Path | None) -> Config:
     Raises:
         ConfigError: If no file was named, or it cannot be read, or it is not valid.
     """
-    if config_path is None:
-        raise ConfigError(
-            "no configuration file was given",
-            [f"pass --config PATH, or set {CONFIG_ENV} to the path of your configuration file"],
-        )
+    config_path = _named(config_path)
     try:
         text = config_path.read_text(encoding="utf-8-sig")
     except FileNotFoundError:
@@ -74,3 +81,29 @@ def open_configured_workspace(config_path: Path | None, environ: Mapping[str, st
         WorkspaceError: If the workspace it names is refused.
     """
     return workspace_of(load_configuration(config_path), environ)
+
+
+@dataclass(frozen=True)
+class Settings:
+    """The configuration and the keys that sit beside it."""
+
+    config: Config
+    secrets: Secrets
+
+
+def load_settings(config_path: Path | None, environ: Mapping[str, str]) -> Settings:
+    """Read the configuration, and the keys from the ``.env`` in the same folder (ADR-0015).
+
+    Args:
+        config_path: The configuration file, or None if the person named none.
+        environ: The environment; a key set there wins over the file.
+
+    Returns:
+        The configuration and the keys.
+
+    Raises:
+        ConfigError: If no file was named, it cannot be read or is not valid, or the ``.env``
+            beside it exists and cannot be read.
+    """
+    path = _named(config_path)
+    return Settings(load_configuration(path), load_secrets(path.parent, environ))

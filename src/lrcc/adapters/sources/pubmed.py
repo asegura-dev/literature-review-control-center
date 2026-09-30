@@ -20,6 +20,7 @@ from lrcc.adapters.sources.safe_xml import clean, full_text, parse_xml
 from lrcc.domain.errors import SourceError
 from lrcc.domain.gold import GoldWork
 from lrcc.domain.record import Record, SearchResult
+from lrcc.domain.secrets import NO_SECRETS, Secrets
 
 if TYPE_CHECKING:
     from xml.etree.ElementTree import Element
@@ -41,13 +42,17 @@ class PubMedSource:
 
     name = "pubmed"
 
-    def __init__(self, client: HttpClient) -> None:
+    def __init__(self, client: HttpClient, secrets: Secrets = NO_SECRETS) -> None:
         """Create the source.
 
         Args:
             client: The program's HTTP client.
+            secrets: The keys of this run. ``NCBI_API_KEY`` is optional: when set, it is sent
+                with every request and recorded only as ``[redacted]`` (ADR-0015).
         """
         self._client = client
+        key = secrets.get("NCBI_API_KEY")
+        self._key = {"api_key": key} if key else {}
 
     def search(self, query: str, limit: int) -> SearchResult:
         """Run ``query`` on PubMed and return at most ``limit`` records.
@@ -72,6 +77,7 @@ class PubMedSource:
                 "retmode": "xml",
                 "tool": TOOL,
             },
+            secret_params=self._key,
         )
         responses = [searched]
         found = parse_xml(searched.body, "PubMed")
@@ -86,7 +92,9 @@ class PubMedSource:
             batch = identifiers[start : start + BATCH]
             responses.append(
                 self._client.fetch(
-                    EFETCH, {"db": "pubmed", "id": ",".join(batch), "retmode": "xml", "tool": TOOL}
+                    EFETCH,
+                    {"db": "pubmed", "id": ",".join(batch), "retmode": "xml", "tool": TOOL},
+                    secret_params=self._key,
                 )
             )
         return SearchResult(
@@ -151,6 +159,7 @@ class PubMedSource:
             self._client.get(
                 ESEARCH,
                 {"db": "pubmed", "term": term, "retmax": "0", "retmode": "xml", "tool": TOOL},
+                secret_params=self._key,
             ),
             "PubMed",
         )

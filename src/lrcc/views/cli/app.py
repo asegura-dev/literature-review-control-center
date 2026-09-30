@@ -10,6 +10,7 @@ as Rich markup, so a title containing ``[bold]`` is printed as written.
 import json
 import os
 from collections.abc import Callable, Mapping
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -23,10 +24,11 @@ from lrcc.domain.errors import LrccError
 from lrcc.features.check_query import CheckResult, GoldState, check_query
 from lrcc.features.configuration import (
     CONFIG_ENV,
-    load_configuration,
+    load_settings,
     open_configured_workspace,
     workspace_of,
 )
+from lrcc.features.imports import ImportOutcome, import_run
 from lrcc.features.init import InitResult, init_review
 from lrcc.features.replay import ReplayResult, replay_review
 from lrcc.features.search import RunOutcome, SearchOutcome, run_search, search_review
@@ -62,10 +64,12 @@ JsonOption = Annotated[bool, typer.Option("--json", help="Print the result as JS
 
 
 class SourceName(StrEnum):
-    """The sources ``lrcc search`` offers. A test keeps it equal to the adapters that exist."""
+    """The sources the commands offer. A test keeps it equal to the adapters that exist."""
 
     arxiv = "arxiv"
+    ieee = "ieee"
     pubmed = "pubmed"
+    scopus = "scopus"
 
 
 SourceOption = Annotated[
@@ -83,6 +87,35 @@ LimitOption = Annotated[
 ]
 PreviewOption = Annotated[
     bool, typer.Option("--preview", help="Show what the string returns, and store nothing.")
+]
+ExportSourceOption = Annotated[
+    SourceName,
+    typer.Option("--source", help="The source the files were exported from.", show_default=False),
+]
+ExportFilesArgument = Annotated[
+    list[Path],
+    typer.Argument(
+        help="The RIS file(s) the database exported for one search, in the order exported.",
+        show_default=False,
+    ),
+]
+SearchedOption = Annotated[
+    datetime,
+    typer.Option(
+        "--searched",
+        formats=["%Y-%m-%d"],
+        help="The day the search was run in the database, as YYYY-MM-DD.",
+        show_default=False,
+    ),
+]
+ReportedOption = Annotated[
+    int,
+    typer.Option(
+        "--reported",
+        min=0,
+        help="The count of records the database reported for the search.",
+        show_default=False,
+    ),
 ]
 
 
@@ -127,9 +160,9 @@ def search(
 ) -> None:
     """Run the protocol's search string on one source and store the run, or preview it."""
     try:
-        configuration = load_configuration(config)
-        workspace = workspace_of(configuration, os.environ)
-        chosen = build_source(source.value, configuration)
+        settings = load_settings(config, os.environ)
+        workspace = workspace_of(settings.config, os.environ)
+        chosen = build_source(source.value, settings.config, settings.secrets)
         if preview:
             outcome = search_review(workspace, review_id, chosen, limit)
             _present(outcome.as_dict(), as_json, lambda: _show_search(outcome))
@@ -140,6 +173,33 @@ def search(
             _present(stored.as_dict(), as_json, lambda: _show_run(stored))
     except LrccError as error:
         _fail(error, as_json)
+
+
+@app.command("import")
+def import_command(
+    review_id: ReviewIdArgument,
+    files: ExportFilesArgument,
+    source: ExportSourceOption,
+    searched: SearchedOption,
+    reported: ReportedOption,
+    config: ConfigOption = None,
+    as_json: JsonOption = False,
+) -> None:
+    """Store a database's RIS export of the protocol's string as a run of that source."""
+    try:
+        workspace = open_configured_workspace(config, os.environ)
+        outcome = import_run(
+            workspace,
+            review_id,
+            source.value,
+            files,
+            searched.date(),
+            reported,
+            build_store(workspace, review_id),
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(outcome.as_dict(), as_json, lambda: _show_import(outcome))
 
 
 @app.command()
@@ -178,13 +238,13 @@ def replay(
 ) -> None:
     """Rederive every run's records from its stored responses, offline. Exits 1 if any differ."""
     try:
-        configuration = load_configuration(config)
-        workspace = workspace_of(configuration, os.environ)
+        settings = load_settings(config, os.environ)
+        workspace = workspace_of(settings.config, os.environ)
         result = replay_review(
             workspace,
             review_id,
             build_store(workspace, review_id),
-            build_sources(configuration),
+            build_sources(settings.config, settings.secrets),
         )
     except LrccError as error:
         _fail(error, as_json)
@@ -230,11 +290,11 @@ def check_query_command(
 ) -> None:
     """Test the protocol's string against the gold set. Exits 1 if it misses an indexed work."""
     try:
-        configuration = load_configuration(config)
+        settings = load_settings(config, os.environ)
         result = check_query(
-            workspace_of(configuration, os.environ),
+            workspace_of(settings.config, os.environ),
             review_id,
-            build_source(source.value, configuration),
+            build_source(source.value, settings.config, settings.secrets),
         )
     except LrccError as error:
         _fail(error, as_json)
@@ -301,6 +361,29 @@ def _show_run(outcome: RunOutcome) -> None:
         )
 
 
+def _show_import(outcome: ImportOutcome) -> None:
+    run = outcome.logged.run
+    console.print(Text.assemble("Stored run ", (run.run_id, "bold"), ", imported from an export."))
+    for label, value in (
+        ("source", run.source),
+        ("searched", run.searched_on),
+        ("reported", str(run.reported)),
+        ("imported", str(run.retrieved)),
+        ("files", f"{len(run.responses)} file(s) under runs/{run.run_id}"),
+        ("protocol", run.protocol_sha256),
+        ("entry hash", outcome.logged.entry_hash),
+    ):
+        console.print(Text(f"  {label:<11}{value}"))
+    if not run.complete:
+        console.print(
+            Text(
+                f"Incomplete: {run.source} reported {run.reported} records and the files hold"
+                f" {run.retrieved}.",
+                style="yellow",
+            )
+        )
+
+
 def _show_status(result: StatusResult) -> None:
     console.print(Text.assemble("Review ", (result.review_id, "bold"), "."))
     console.print(Text(f"  protocol   {result.protocol_sha256}"))
@@ -309,9 +392,10 @@ def _show_status(result: StatusResult) -> None:
     # One line per run, never a table: a run id must stay whole to be copied or searched for.
     for summary in result.runs:
         run = summary.logged.run
+        origin = f"export searched {run.searched_on}  " if run.imported else ""
         console.print(
             Text(
-                f"  {run.run_id}  reported {run.reported}  retrieved {run.retrieved}  "
+                f"  {run.run_id}  {origin}reported {run.reported}  retrieved {run.retrieved}  "
                 f"{'complete' if run.complete else 'incomplete'}  "
                 f"protocol {'current' if summary.current_protocol else 'changed since'}"
             )

@@ -3,6 +3,9 @@
 A run records what was asked, when, what the source reported, and the digest of every raw
 response it stored. Runs are appended, never edited. Each entry's hash covers the entry and the
 hash before it, so an edit, a removal or a reordering breaks every hash that follows.
+
+A run is either a search LRCC made through a source's API, or an import of the files a person
+exported from the database's own interface (ADR-0016). The second records the day of the search.
 """
 
 from __future__ import annotations
@@ -11,6 +14,7 @@ import hashlib
 import json
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -40,7 +44,11 @@ def _canonical(value: object) -> str:
 
 
 class StoredResponse(BaseModel):
-    """One raw response as the log knows it: its file, what was asked, its size and digest."""
+    """One raw response as the log knows it: its file, what was asked, its size and digest.
+
+    For an imported run, ``url`` holds the name of the file the person gave, since nothing was
+    asked.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -48,6 +56,16 @@ class StoredResponse(BaseModel):
     url: str
     size: int
     sha256: str
+
+
+class Imported(BaseModel):
+    """What an imported run records besides a search's fields (ADR-0016)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    format: Literal["ris"]
+    #: The day the person ran the search in the database's interface, as YYYY-MM-DD.
+    searched_on: str
 
 
 class Run(BaseModel):
@@ -67,15 +85,25 @@ class Run(BaseModel):
     lrcc_version: str
     responses: tuple[StoredResponse, ...]
     records_sha256: str
+    imported: Imported | None = None
 
     @property
     def complete(self) -> bool:
         """Whether every record the source reported was retrieved."""
         return self.retrieved >= self.reported
 
+    @property
+    def searched_on(self) -> str:
+        """The day the search ran: the day given for an import, else the UTC day it started."""
+        return self.imported.searched_on if self.imported else self.started_at[:10]
+
     def entry(self) -> str:
-        """Return the run as the canonical JSON document the log stores and hashes."""
-        return _canonical(self.model_dump(mode="json"))
+        """Return the run as the canonical JSON document the log stores and hashes.
+
+        A field added after v0.7.0 is optional, and left out while empty. An entry written
+        before the field existed keeps its canonical form, and so its hash (ADR-0016).
+        """
+        return _canonical(self.model_dump(mode="json", exclude_none=True))
 
 
 class LoggedRun(BaseModel):
@@ -148,16 +176,18 @@ def build_run(
     protocol_sha256: str,
     result: SearchResult,
     lrcc_version: str,
+    imported: Imported | None = None,
 ) -> Run:
     """Describe a finished search as a run.
 
     Args:
         sequence: The run's number in the review, from 1.
-        started: When the search started, in UTC.
+        started: When the search started, in UTC. For an import, when the import started.
         finished: When it finished, in UTC.
         protocol_sha256: The digest of the protocol the search string came from.
         result: What the source returned, with its raw responses.
         lrcc_version: The version of LRCC that ran the search.
+        imported: For an import, its format and the day of the search; None for an API search.
 
     Returns:
         The run, with the digest and size of every response and the digest of the records.
@@ -184,6 +214,7 @@ def build_run(
         lrcc_version=lrcc_version,
         responses=responses,
         records_sha256=records_digest(result.records),
+        imported=imported,
     )
 
 

@@ -43,6 +43,8 @@ class StatusResult:
                     "run_id": summary.logged.run.run_id,
                     "started_at": summary.logged.run.started_at,
                     "source": summary.logged.run.source,
+                    "imported": summary.logged.run.imported is not None,
+                    "searched_on": summary.logged.run.searched_on,
                     "reported": summary.logged.run.reported,
                     "retrieved": summary.logged.run.retrieved,
                     "complete": summary.logged.run.complete,

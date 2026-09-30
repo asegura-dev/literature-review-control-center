@@ -1,0 +1,31 @@
+{
+  "_synthetic": "Written by hand for LRCC's tests. It holds no IEEE Xplore content: every title, author, abstract, number and DOI is invented. Only the shape follows a Metadata Search answer.",
+  "total_records": 3,
+  "total_searched": 6000000,
+  "articles": [
+    {
+      "article_number": "90000001",
+      "doi": "10.0000/SYNTHETIC.IEEE.1",
+      "title": "A synthetic IEEE title about  cross-modal\n distillation",
+      "publication_year": 2021,
+      "publication_title": "Synthetic Transactions on Examples",
+      "abstract": "An invented abstract.",
+      "authors": {
+        "authors": [
+          {"full_name": "Ada Example", "author_order": 1},
+          {"full_name": "Grace Sample", "author_order": 2}
+        ]
+      }
+    },
+    {
+      "article_number": "90000002",
+      "title": "A second synthetic IEEE title, without a DOI or an abstract",
+      "publication_year": "2019",
+      "authors": {
+        "authors": [
+          {"full_name": "Alan Specimen", "author_order": 1}
+        ]
+      }
+    }
+  ]
+}
