@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted (built in v0.0.1)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -72,7 +72,7 @@ the synchronised tree, through a small wrapper script (`run.ps1`).
 
 ## Decision Outcome
 
-Recommended options:
+Chosen options:
 
 - **Build and layout, option 1.** `uv init --package`, `uv_build` backend, `src/lrcc/`, lockfile
   committed, `.python-version` committed. A `src` layout forces tests to import the installed
@@ -180,3 +180,22 @@ Recommended options:
   2026-09-29: the reference moved from the v0.0.1 row to the v0.14.0 row.
 - Python support dates come from the CPython release schedule (PEP 693 for 3.12, PEP 664 for
   3.11) and should be rechecked when this record is accepted.
+
+## Implementation
+
+**v0.0.1** built this record. Three details were settled while building it, and are recorded here
+because somebody will hit them later:
+
+- **A second launcher, `scripts/uv_run.py`.** pre-commit hooks do not pass through `run.ps1`, and
+  a bare `uv run` inside a hook would create a `.venv` in the checkout. The launcher does what
+  `run.ps1` does, with the standard library only, so pre-commit runs it on any platform.
+  `tests/test_environment.py` fails if the two name different environments.
+- **Two per-file ignores in `pyproject.toml`, approved by the maintainer on 2026-09-29.** `S101` in `tests/**`
+  (pytest reports through `assert`), and `S603` in `scripts/uv_run.py` (the launcher's only job is
+  to start uv; the executable is resolved with `shutil.which`). No `# noqa` exists in the code.
+- **Versions resolved on 2026-09-29:** uv 0.10.12 (pinned in CI), `uv_build>=0.10.12,<0.11.0`,
+  ruff 0.16.9, mypy 2.3.1, pytest 9.1.1, pytest-cov 7.1.0, pre-commit 4.6.2, gitleaks v8.30.1.
+  pre-commit bootstraps the Go toolchain that the gitleaks hook needs; no Go installation is
+  required.
+- **Coverage** is reported, with no threshold, as decided. On the empty package it reads 100% of
+  zero statements, which is exactly why no threshold was set yet.

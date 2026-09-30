@@ -4,9 +4,9 @@ This chapter describes the route to v1.0 and the direction after it. Nearer phas
 
 ## Status
 
-Nothing is built yet. This roadmap was written on 2026-09-28, before the first commit. The current phase is **v0.0.1, Scaffold**.
+This roadmap was written on 2026-09-28, before the first commit. The current phase is **v0.0.1, Scaffold**. On 2026-09-29 it was built on the branch `v0.0.1-scaffold`, where its gate is green locally on Windows. Two things remain before it is done: CI on Linux and Windows, observed after a push, and the maintainer's acceptance. What was run and observed is in [the phase notes](phases/v0.0.1.md). No capability exists yet.
 
-On 2026-09-29 the nine founding decision records (ADR-0001 to ADR-0009) were drafted as Proposed. Drafting them amended this chapter in five places:
+On 2026-09-29 the nine founding decision records (ADR-0001 to ADR-0009) were drafted, and the maintainer accepted them the same day. Drafting them amended this chapter in five places:
 
 - The API-reference generator moved from v0.0.1 to v0.14.0.
 - `init` was placed in v0.1.0; it had no version.

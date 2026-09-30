@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted (built in v0.0.1)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -33,7 +33,7 @@ workspace (ADR-0006).
 
 ## Decision Outcome
 
-Recommended option: **option 1, MIT for everything**, with copyright held by the maintainer.
+Chosen option: **option 1, MIT for everything**, with copyright held by the maintainer.
 
 - `LICENSE` at the repository root carries the MIT text.
 - `pyproject.toml` declares it.
@@ -91,3 +91,8 @@ Recommended option: **option 1, MIT for everything**, with copyright held by the
 ## More Information
 
 - The brief, section 13, and LACC's `LICENSE`.
+
+## Implementation
+
+- **v0.0.1.** `LICENSE` carries the MIT text, and `pyproject.toml` declares `license = "MIT"`
+  with `license-files = ["LICENSE"]`.

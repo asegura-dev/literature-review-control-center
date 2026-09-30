@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -45,7 +45,7 @@ program.
 
 ## Decision Outcome
 
-Recommended option: **option 1, a separate program**, because it is the only option in which the
+Chosen option: **option 1, a separate program**, because it is the only option in which the
 network surface, the release cycle and the domain rules of the review stay out of LACC without
 extra machinery.
 
@@ -118,3 +118,9 @@ extra machinery.
 
 - Chapter 0, the project brief, sections 1, 2 and 5, records the founding argument.
 - LACC's roadmap, v3.0.0, describes the `discover` capability as planned there.
+
+## Implementation
+
+- **v0.0.1.** `tests/test_layering.py` fails if any module under `src/lrcc/` imports
+  `local_ai_control_center`; a parametrized case proves the rule can fail. `pyproject.toml`
+  declares no runtime dependency at all. The bundle-side confirmation arrives with v0.14.0.

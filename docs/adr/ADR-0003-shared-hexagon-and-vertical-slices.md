@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted (built in v0.0.1)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -45,7 +45,7 @@ with every test green (ADR-065). The converse rule, and a machine check for it, 
 
 ## Decision Outcome
 
-Recommended option: **option 1**, because it keeps shared rules shared and puts each capability
+Chosen option: **option 1**, because it keeps shared rules shared and puts each capability
 in one place. Of the four, it is also the only one that can be checked mechanically in both
 directions.
 
@@ -150,3 +150,22 @@ function each make it fail by name.
 - LACC's records ADR-029, ADR-065 and ADR-066, in the `local-ai-control-center` repository.
 - The exact presentation vocabulary is fixed when the first view is written, and is listed in the
   test, not here.
+
+## Implementation
+
+**v0.0.1** built `tests/test_layering.py`. Three details were fixed while writing it:
+
+- **Composition is a module named `composition`** under `views/`. It is the only view module that
+  may import `adapters`, and it is exempt from the outward check.
+- **Views may not import `domain`**, as the table above says. If a view ever needs a domain type
+  only to annotate what a feature returned, that is an amendment to this record, not a quiet
+  widening of the test.
+- **The closure runs through callees, not callers.** A view function is presentation if it
+  touches the vocabulary directly or through a function it calls. Being called by a renderer does
+  not count, or any logic reached from a renderer would be excused. A pure formatter must touch
+  the vocabulary itself or be named in `EXEMPT_VIEW_FUNCTIONS`, where a reviewer sees it.
+
+Both directions were seen to fail on the real package: a `domain` module importing `adapters`,
+and a logic-only function in a view, each named by the test. The output is in
+`docs/phases/v0.0.1.md`. Parametrized cases keep every inward rule and the outward rule proven
+to fail on each run.
