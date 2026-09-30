@@ -31,3 +31,4 @@ never deleted or rewritten.
 | [ADR-0011](ADR-0011-one-http-client-and-the-first-two-sources.md) | One HTTP client with an allowlist, PubMed and arXiv, and `lrcc search` | built in v0.3.0 |
 | [ADR-0012](ADR-0012-stored-runs-and-a-hash-chained-log.md) | A search is a stored run: raw responses, records and a hash-chained log | built in v0.5.0 |
 | [ADR-0013](ADR-0013-verify-and-replay.md) | `verify` checks what is stored; `replay` rederives it offline; PubMed book records | built in v0.7.0 |
+| [ADR-0014](ADR-0014-checking-a-search-string-against-a-gold-set.md) | A search string is checked against a gold set, with coverage kept apart from misses | proposed; built in v0.7.0 |

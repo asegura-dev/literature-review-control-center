@@ -12,6 +12,10 @@ stored responses without the network.
 
 ### Added
 
+- **`lrcc check-query REVIEW_ID --source NAME`.** It checks the protocol's string against the
+  review's gold set, `reviews/<review_id>/gold.yaml`. Each work is retrieved, missed, not indexed
+  by the source, or unknown for lack of an identifier; only a miss counts against the string.
+  It exits with code 1 on any miss (ADR-0014).
 - **`lrcc verify REVIEW_ID`.** It recomputes the hash chain, the SHA-256 and size of every stored
   response, and the digest of the records in the database, and compares each with the log. It
   also names files and run folders the log does not know about. It exits with code 1 on any
