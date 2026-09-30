@@ -32,3 +32,4 @@ never deleted or rewritten.
 | [ADR-0012](ADR-0012-stored-runs-and-a-hash-chained-log.md) | A search is a stored run: raw responses, records and a hash-chained log | built in v0.5.0 |
 | [ADR-0013](ADR-0013-verify-and-replay.md) | `verify` checks what is stored; `replay` rederives it offline; PubMed book records | built in v0.7.0 |
 | [ADR-0014](ADR-0014-checking-a-search-string-against-a-gold-set.md) | A search string is checked against a gold set, with coverage kept apart from misses | proposed; built in v0.7.0 |
+| [ADR-0015](ADR-0015-api-keys-scopus-and-ieee-xplore.md) | API keys from a `.env` beside the configuration, never recorded; Scopus and IEEE Xplore | proposed; built in v0.8.0 |
