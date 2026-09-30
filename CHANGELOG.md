@@ -5,6 +5,33 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.7.0] - Unreleased
+
+What a review stores can be checked against its log, and every run can be reproduced from its
+stored responses without the network.
+
+### Added
+
+- **`lrcc verify REVIEW_ID`.** It recomputes the hash chain, the SHA-256 and size of every stored
+  response, and the digest of the records in the database, and compares each with the log. It
+  also names files and run folders the log does not know about. It exits with code 1 on any
+  mismatch (ADR-0013).
+- **`lrcc replay REVIEW_ID`.** It rederives every run's records from its stored responses, with
+  no request, and says whether they are the records the run logged. It changes nothing, and
+  exits with code 1 if any run is not reproduced.
+
+### Fixed
+
+- **PubMed book records were dropped.** `efetch` answers with `PubmedBookArticle` for books and
+  book chapters, and only `PubmedArticle` was read. The first real run reported 2,499 records
+  and retrieved 2,489; the ten missing were book records. Both kinds are now read, in order.
+  A run stored before this fix replays as different, which is accurate: re-run it.
+
+### Changed
+
+- **The source port gains `records_from`.** A search and a replay derive records with the same
+  code, from the raw answers alone.
+
 ## [0.5.0] - Unreleased
 
 A search becomes a stored run: what each source returned is kept, and the log of runs cannot be

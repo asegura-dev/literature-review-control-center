@@ -30,3 +30,4 @@ never deleted or rewritten.
 | [ADR-0010](ADR-0010-configuration-protocol-and-workspace.md) | Configuration, protocol and workspace in one phase, with `init` and `validate` | built in v0.1.0 |
 | [ADR-0011](ADR-0011-one-http-client-and-the-first-two-sources.md) | One HTTP client with an allowlist, PubMed and arXiv, and `lrcc search` | built in v0.3.0 |
 | [ADR-0012](ADR-0012-stored-runs-and-a-hash-chained-log.md) | A search is a stored run: raw responses, records and a hash-chained log | built in v0.5.0 |
+| [ADR-0013](ADR-0013-verify-and-replay.md) | `verify` checks what is stored; `replay` rederives it offline; PubMed book records | built in v0.7.0 |

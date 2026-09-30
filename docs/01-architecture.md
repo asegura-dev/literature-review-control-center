@@ -11,7 +11,7 @@ exists; where something is still planned, it says so. The decisions behind it ar
 
 ## Status
 
-As of v0.5.0 every layer holds code. There are two ports: the source port, with PubMed and
+As of v0.7.0 every layer holds code. There are two ports: the source port, with PubMed and
 arXiv behind it, and the store port, with DuckDB behind it. Every request goes through one
 HTTP client.
 
@@ -41,7 +41,9 @@ src/lrcc/
 │   ├── init/             create a review from the synthetic protocol template
 │   ├── validate.py       check a protocol and report its digest
 │   ├── search.py         run the protocol's string on one source: a stored run, or a preview
-│   └── status.py         list a review's runs and verify its log
+│   ├── status.py         list a review's runs and verify its log
+│   ├── verify.py         check every stored response and record against the log
+│   └── replay.py         rederive every run's records from its stored responses
 └── views/
     └── cli/
         ├── app.py          the `lrcc` command (Typer and Rich)
@@ -135,10 +137,18 @@ A log entry is one canonical JSON document. It names each response file with its
 SHA-256, and its own hash covers the entry and the hash of the entry before it (ADR-0012).
 `lrcc status` recomputes that chain every time it is run.
 
+## Replay uses the code that searched
+
+Each source derives its records in one method, `records_from`, which takes the raw answers of
+a search and makes no request. `search` calls it on the answers it just received, and
+`replay` calls it on the answers a run stored. They cannot disagree about how an answer is
+read, so a replay that differs from its run means the code changed since (ADR-0013).
+
+`lrcc verify` asks the other question: whether the files and the records on disk are still
+the ones the log describes. Neither command writes anything.
+
 ## Planned
 
-- **Replay and verification (v0.7.0):** rederive every record from the stored responses, and
-  check the stored files against the log.
 - **Identity (ADR-0006, from v0.9.0):** `work_id` and its catalog, with deduplication.
 - **Integration (ADR-0005, from v0.14.0):** the review bundle, `--json` on every command, and
   the public Python API in `lrcc.api`.

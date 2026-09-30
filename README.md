@@ -13,18 +13,21 @@ stored response and a recorded decision. To get there, it:
 
 ## Status
 
-**v0.5.0: a review can be created, its protocol checked, and its search strings run on PubMed
-and arXiv as stored runs. It has been run against both real services, on small result sets
-only.** LRCC has four commands:
+**v0.7.0: a review can be created, its protocol checked, its search strings run on PubMed and
+arXiv as stored runs, and those runs verified and replayed offline. It has been run against
+both real services on a synthetic example protocol, not yet on a real review.** LRCC has six
+commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;
 - `lrcc validate` checks the protocol and prints the SHA-256 to register;
 - `lrcc search` runs the protocol's search string on one source and stores the run: every raw
   response with its digest, the records, and an entry in a hash-chained log. With `--preview`
   it stores nothing;
-- `lrcc status` lists a review's runs and checks that its log was not edited.
+- `lrcc status` lists a review's runs and checks that its log was not edited;
+- `lrcc verify` checks every stored response and record against the log;
+- `lrcc replay` rederives every run's records from its stored responses, without the network.
 
-Replay from the stored responses arrives in v0.7.0, and deduplication and screening after it.
+Deduplication and screening come next.
 The route to v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
 
 ## Try it
@@ -69,10 +72,13 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
    uv run lrcc search my-review --source arxiv --preview --config C:\lrcc\config.yaml
    uv run lrcc search my-review --source arxiv --config C:\lrcc\config.yaml
    uv run lrcc status my-review --config C:\lrcc\config.yaml
+   uv run lrcc verify my-review --config C:\lrcc\config.yaml
+   uv run lrcc replay my-review --config C:\lrcc\config.yaml
    ```
 
    The first line previews what the string returns and stores nothing. The second stores a
-   run. The third lists the runs and verifies the log.
+   run. The third lists the runs. The fourth checks the stored files against the log. The
+   fifth rederives the records from the stored files, offline.
 
    `min_interval` is the pause, in seconds, between two requests to that host. The values
    above follow each service's published limits.
