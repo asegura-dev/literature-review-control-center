@@ -13,14 +13,16 @@ stored response and a recorded decision. To get there, it:
 
 ## Status
 
-**v0.1.0: a review can be created and its protocol checked. Nothing searches yet.** LRCC has
-two commands:
+**v0.3.0: a review can be created, its protocol checked, and its search strings previewed on
+PubMed and arXiv. Nothing is stored yet.** LRCC has three commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;
-- `lrcc validate` checks the protocol and prints the SHA-256 to register.
+- `lrcc validate` checks the protocol and prints the SHA-256 to register;
+- `lrcc search` runs the protocol's search string on one source and prints the count the
+  source reports and the records retrieved.
 
-Searching arrives with the HTTP client and the first sources (v0.3.0 and v0.4.0). The route to
-v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
+A search is a preview, not a run: stored responses, the run log and replay arrive in v0.5.0 and
+v0.7.0. The route to v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
 
 ## Try it
 
@@ -47,6 +49,25 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
 
    If the checkout lives in a synchronised folder on Windows, run `.\run.ps1` in place of `uv`.
    The [development guide](docs/guides/development.md) explains why.
+
+4. **To search, turn the network on** in the configuration, and name the hosts LRCC may
+   contact. It contacts no others:
+
+   ```yaml
+   workspace: C:\lrcc-workspace
+   network:
+     enabled: true
+     hosts:
+       eutils.ncbi.nlm.nih.gov: {min_interval: 0.4}
+       export.arxiv.org: {min_interval: 3.0}
+   ```
+
+   ```powershell
+   uv run lrcc search my-review --source arxiv --limit 10 --config C:\lrcc\config.yaml
+   ```
+
+   `min_interval` is the pause, in seconds, between two requests to that host. The values
+   above follow each service's published limits.
 
 `init` writes `reviews/my-review/protocol.yaml`, a synthetic example: replace it with your
 review's question, criteria, search strings and extraction fields. `validate` names every problem

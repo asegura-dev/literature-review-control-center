@@ -5,6 +5,43 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.3.0] - Unreleased
+
+The first search: a protocol's string run against PubMed or arXiv, through a client that contacts
+only the hosts the configuration names.
+
+### Added
+
+- **`lrcc search REVIEW_ID --source pubmed|arxiv`.** It runs the protocol's search string for
+  that source and prints the count the source reported, the count retrieved and the records. It
+  takes `--limit`, `--config` and `--json`. It is a preview: nothing is stored yet (ADR-0011).
+- **Network settings in the configuration.**
+  - The network is off unless `network.enabled` is `true`.
+  - `network.hosts` is the allowlist. Each host carries `min_interval`, the seconds to leave
+    between two requests to it.
+- **One HTTP client.** It refuses, before anything is sent:
+  - any request while the network is off;
+  - a host that is not listed;
+  - anything but HTTPS on the default port.
+
+  It never follows a redirect. It retries transport errors, HTTP 429 and HTTP 5xx with backoff,
+  four attempts in all, and refuses a response above 50 MB.
+- **The source port**, with PubMed (E-utilities) and arXiv (Atom API) as its two
+  implementations. XML is parsed with `defusedxml`; a document that declares entities is
+  refused.
+- **A frozen `Record`:** source, the source's identifier, title, authors, year, DOI and abstract.
+- **Two gate checks:**
+  - no module but the HTTP client may import a networking library;
+  - every test fails if it opens a real connection.
+- **Runtime dependencies:** httpx, tenacity, defusedxml (ADR-0011).
+
+### Changed
+
+- **Roadmap:**
+  - v0.4.0 is merged into v0.3.0;
+  - `work_id` and its catalog move to v0.9.0, with deduplication;
+  - secrets move to v0.8.0, with the first source that requires a key.
+
 ## [0.1.0] - Unreleased
 
 The first commands: create a review and check its protocol, inside a workspace that refuses to

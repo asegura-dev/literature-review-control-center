@@ -11,8 +11,8 @@ exists; where something is still planned, it says so. The decisions behind it ar
 
 ## Status
 
-As of v0.1.0 the domain, three features and the command-line view hold code. `ports/` and
-`adapters/` are still empty: no external system is reached yet.
+As of v0.3.0 every layer holds code. The first port exists, the source port, with its two
+adapters, and one HTTP client through which every request goes.
 
 ## The layout
 
@@ -24,15 +24,23 @@ src/lrcc/
 │   ├── identifiers.py  review_id, validated before it becomes a folder name
 │   ├── config.py       Config: the workspace path, absolute and required
 │   ├── protocol.py     Protocol format 1, and the digest over the file's bytes
-│   └── workspace.py    Workspace: the boundary of ADR-0006
-├── ports/              protocols, only where two real implementations exist (none yet)
-├── adapters/           sources/, storage/, notify/ (planned)
+│   ├── workspace.py    Workspace: the boundary of ADR-0006
+│   ├── reviews.py      read a review's protocol from the workspace
+│   └── record.py       Record and SearchResult: what a source said, made uniform
+├── ports/
+│   └── source.py       the source port: a query and a limit in, a SearchResult out
+├── adapters/
+│   ├── http.py         the one HTTP client: allowlist, rate limit, retries
+│   └── sources/        pubmed.py, arxiv.py, and safe_xml.py (defusedxml)
 ├── features/
 │   ├── configuration.py  read the configuration, open its workspace
 │   ├── init/             create a review from the synthetic protocol template
-│   └── validate.py       check a protocol and report its digest
+│   ├── validate.py       check a protocol and report its digest
+│   └── search.py         run the protocol's string on one source, as a preview
 └── views/
-    └── cli/app.py      the `lrcc` command (Typer and Rich)
+    └── cli/
+        ├── app.py          the `lrcc` command (Typer and Rich)
+        └── composition.py  builds the HTTP client and a source from the configuration
 ```
 
 The hexagon (`domain`, `ports`, `adapters`) is horizontal and shared: one `Record`, one hash
@@ -98,16 +106,19 @@ exemptions:
 Parametrized cases write a temporary package that breaks each rule and assert the test names the
 break. A check that has never been seen to fail is not trusted.
 
-`tests/test_no_listening_port.py` checks the other structural promise: LRCC contains no
+`tests/test_no_listening_port.py` checks another structural promise: LRCC contains no
 server-side networking (ADR-0005).
+
+`tests/test_egress.py` checks the third: only `adapters/http.py` may import a networking
+library, so the allowlist in that one client is the only way out (ADR-0011). The client refuses
+a request before sending it when the network is off, when the host is not listed, or when the
+address is not plain HTTPS, and it never follows a redirect.
 
 ## Planned
 
-- **HTTP and identity (v0.3.0):** one HTTP client with an allowlist, a frozen `Record`, and
-  `work_id` with its catalog (ADR-0006).
-- **Sources (from v0.4.0):** the source port, shaped by its two real cases, PubMed and arXiv.
 - **Storage (ADR-0004, from v0.5.0):**
   - one DuckDB file per review, raw responses stored as files beside it with their SHA-256;
   - no storage port.
+- **Identity (ADR-0006, from v0.9.0):** `work_id` and its catalog, with deduplication.
 - **Integration (ADR-0005, from v0.14.0):** the review bundle, `--json` on every command, and
   the public Python API in `lrcc.api`.

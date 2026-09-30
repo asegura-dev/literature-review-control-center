@@ -28,3 +28,4 @@ never deleted or rewritten.
 | [ADR-0008](ADR-0008-no-ai-co-authorship.md) | No AI co-authorship, enforced by hook and CI; disclosure in publications | built in v0.0.1 |
 | [ADR-0009](ADR-0009-license.md) | MIT for everything in the repository | built in v0.0.1 |
 | [ADR-0010](ADR-0010-configuration-protocol-and-workspace.md) | Configuration, protocol and workspace in one phase, with `init` and `validate` | built in v0.1.0 |
+| [ADR-0011](ADR-0011-one-http-client-and-the-first-two-sources.md) | One HTTP client with an allowlist, PubMed and arXiv, and `lrcc search` | built in v0.3.0 |
