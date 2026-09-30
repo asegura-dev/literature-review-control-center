@@ -28,17 +28,19 @@ LAYERS = ("domain", "ports", "adapters", "features", "views")
 
 #: Which layers each layer may import from inside ``lrcc`` (ADR-0003). ``features`` is further
 #: limited to its own slice, and ``views`` to ``adapters`` only in composition modules; both are
-#: checked separately below.
+#: checked separately below. Views may import ``domain`` for the types and errors a feature
+#: returns or raises (ADR-0010); that they decide nothing is the outward check's job.
 ALLOWED: dict[str, frozenset[str]] = {
     "domain": frozenset({"domain"}),
     "ports": frozenset({"domain", "ports"}),
     "adapters": frozenset({"domain", "ports", "adapters"}),
     "features": frozenset({"domain", "ports", "features"}),
-    "views": frozenset({"features", "views", "adapters"}),
+    "views": frozenset({"features", "views", "adapters", "domain"}),
 }
 
-#: Third-party packages the domain may import besides the standard library (ADR-0003).
-DOMAIN_THIRD_PARTY = frozenset({"pydantic"})
+#: Third-party packages the domain may import besides the standard library: Pydantic, with its
+#: core, validates (ADR-0003); PyYAML's safe loader parses the documents people write (ADR-0010).
+DOMAIN_THIRD_PARTY = frozenset({"pydantic", "pydantic_core", "yaml"})
 
 #: LRCC is a sibling of LACC, coupled only through the review bundle (ADR-0001).
 FORBIDDEN_EVERYWHERE = frozenset({"local_ai_control_center"})
@@ -264,7 +266,7 @@ def package(tmp_path: Path) -> Path:
         ("features/search/use.py", "from lrcc.adapters import x\n", "features may not import"),
         ("features/search/use.py", "from lrcc.features.dedupe import x\n", "imports no other"),
         ("views/cli.py", "from lrcc.adapters import x\n", "only composition builds adapters"),
-        ("views/cli.py", "from lrcc.domain import x\n", "views may not import domain"),
+        ("views/cli.py", "from lrcc.ports import x\n", "views may not import ports"),
         ("features/search/use.py", "import local_ai_control_center\n", "reached by bundle"),
         ("extras/thing.py", "", "lives outside the layers"),
     ],
@@ -286,7 +288,11 @@ def test_the_allowed_imports_pass(package: Path) -> None:
     _write(package.parent, "features/search/__init__.py", '"""Search."""\n')
     _write(package.parent, "features/search/use.py", "from . import helpers\n")
     _write(package.parent, "views/composition.py", "from lrcc.adapters import pubmed\n")
-    _write(package.parent, "views/cli.py", "from lrcc.features.search import use\n")
+    _write(
+        package.parent,
+        "views/cli.py",
+        "from lrcc.features.search import use\nfrom lrcc.domain.errors import LrccError\n",
+    )
     assert layering_violations(package) == []
 
 

@@ -1,0 +1,55 @@
+# LRCC review protocol, format 1.
+#
+# `lrcc init` wrote this file from a SYNTHETIC example. Replace every value with your own
+# review's before you search. `lrcc validate` checks it and prints its SHA-256: that digest is
+# what you register (on OSF, for instance), so that anyone can check the search used this exact
+# file. Any edit, even a line ending, changes the digest.
+#
+# Every field is required. An empty value is an error, never a default.
+
+format: 1
+review_id: __REVIEW_ID__
+title: Synthetic example - reproducible search and screening in literature reviews
+
+# The question, and the framework that structures it (PCC for a scoping review, PICO, ...).
+question:
+  text: >-
+    What methods do literature reviews report for making their search and screening
+    reproducible and auditable?
+  framework: PCC
+  elements:
+    population: Systematic and scoping literature reviews
+    concept: Methods, tools or records that make search and screening reproducible
+    context: Any discipline and any publication year
+
+# Coded eligibility criteria. Every screening decision will cite one of these codes.
+criteria:
+  - code: INC1
+    text: Reports how the search or the screening of a literature review was carried out.
+  - code: INC2
+    text: Describes at least one method, tool or record meant to make that process reproducible.
+  - code: EXC1
+    text: Neither a literature review nor a method or tool for carrying one out.
+  - code: EXC2
+    text: Full text not available in a language the reviewers read.
+
+# One search string per source, in that source's own syntax.
+# Known sources: pubmed, arxiv, scopus, ieee.
+sources:
+  pubmed:
+    query: >-
+      ("systematic review"[tiab] OR "scoping review"[tiab]) AND (reproducib*[tiab] OR
+      "audit trail"[tiab]) AND (screening[tiab] OR search*[tiab])
+  arxiv:
+    query: >-
+      (abs:"systematic review" OR abs:"scoping review") AND (abs:reproducibility OR
+      abs:"audit trail")
+
+# The fields data extraction fills in for each included work.
+extraction:
+  - name: review_type
+    description: The kind of review, as its authors name it.
+  - name: reproducibility_methods
+    description: Methods, tools or records reported for reproducible search or screening.
+  - name: stages_covered
+    description: Which stages those methods cover (identification, screening, eligibility).
