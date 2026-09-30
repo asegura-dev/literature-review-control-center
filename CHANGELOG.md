@@ -14,7 +14,8 @@ expose what it holds.
 
 - **`lrcc init REVIEW_ID`.** Creates `library/` and `reviews/<review_id>/protocol.yaml` in the
   workspace, from a synthetic template, and prints the protocol's SHA-256. It never overwrites
-  an existing review (ADR-0010).
+  an existing review. The template is pinned to LF line endings, so `init` writes the same bytes,
+  and prints the same digest, on every platform (ADR-0010).
 - **`lrcc validate REVIEW_ID`.**
   - It checks every field of the protocol and reports every problem in one pass, each located
     by field.

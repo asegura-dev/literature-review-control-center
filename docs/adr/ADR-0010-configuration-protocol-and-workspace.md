@@ -163,5 +163,9 @@ Chosen option: **option 1**.
 - **The template** lives beside its slice, at `src/lrcc/features/init/protocol-template.yaml`.
   It is synthetic, and it is valid as written, which a test checks through `init` and then
   `validate`.
+- **The template is pinned to LF line endings** by `.gitattributes`. `init` copies it byte for
+  byte and hashes the copy. A fresh Windows clone was measured with a CR on every one of its 55
+  lines, so without the pin the same version of LRCC would print a different digest on Windows
+  than on Linux. A test asserts that the template contains no CR.
 - **Links out of the workspace.** Tests create a junction on Windows and a symlink elsewhere,
   and both are refused. No test is skipped on either platform.

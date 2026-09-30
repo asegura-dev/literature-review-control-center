@@ -11,6 +11,7 @@ import hashlib
 import importlib.metadata
 import json
 from collections.abc import Callable
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,16 @@ def test_init_creates_the_layout_and_a_protocol(config_file: Path, workspace_roo
     assert protocol.is_file()
     assert hashlib.sha256(protocol.read_bytes()).hexdigest() in result.stdout
     assert "review_id: example" in protocol.read_text(encoding="utf-8")
+
+
+def test_the_template_has_the_same_bytes_on_every_platform() -> None:
+    """``init`` hashes a byte-for-byte copy of the template; ``.gitattributes`` pins it to LF.
+
+    Without the pin, a fresh Windows clone had a CR on every line, and ``init`` would have
+    printed a different digest there than on Linux for the same version of LRCC.
+    """
+    template = files("lrcc.features.init").joinpath("protocol-template.yaml").read_bytes()
+    assert b"\r" not in template
 
 
 def test_the_new_protocol_validates(config_file: Path) -> None:
