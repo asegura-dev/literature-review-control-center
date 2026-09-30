@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import importlib.metadata
 import json
+import re
 from collections.abc import Callable
 from importlib.resources import files
 from pathlib import Path
@@ -21,6 +22,9 @@ from typer.testing import CliRunner, Result
 from lrcc.views.cli.app import app, main
 
 runner = CliRunner()
+
+#: Terminal colour and style codes, which Typer adds to help under CI.
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def lrcc(*args: str, env: dict[str, str | None] | None = None) -> Result:
@@ -217,8 +221,13 @@ def test_the_lrcc_command_runs_this_application() -> None:
 
 @pytest.mark.parametrize("command", ["init", "validate"])
 def test_each_command_explains_itself(command: str) -> None:
-    """``--help`` works without a configuration: help is not a command that needs one."""
+    """``--help`` works without a configuration: help is not a command that needs one.
+
+    Typer colours its help when it detects GitHub Actions, and the colour codes land inside
+    ``--config``. They are stripped before the text is checked: CI failed on exactly this.
+    """
     result = lrcc(command, "--help")
     assert result.exit_code == 0
-    assert "--config" in result.stdout
-    assert "--json" in result.stdout
+    text = ANSI_ESCAPE.sub("", result.stdout)
+    assert "--config" in text
+    assert "--json" in text
