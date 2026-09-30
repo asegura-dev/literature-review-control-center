@@ -5,6 +5,33 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.5.0] - Unreleased
+
+A search becomes a stored run: what each source returned is kept, and the log of runs cannot be
+edited quietly.
+
+### Added
+
+- **Stored runs.** `lrcc search REVIEW_ID --source NAME` now stores the run (ADR-0012):
+  - every raw response, byte for byte, under `reviews/<review_id>/runs/<run_id>/`;
+  - the records, in `reviews/<review_id>/review.duckdb`;
+  - a log entry with the UTC times, the search string and its SHA-256, the protocol's SHA-256,
+    the reported and retrieved counts, the LRCC version, and each response's size and SHA-256.
+- **A hash-chained run log.** Each entry's hash covers the entry and the hash before it, so an
+  edit, a removal or a reordering is detected.
+- **`lrcc status REVIEW_ID`.** It lists the runs with their counts, says whether each used the
+  protocol as it stands now, and verifies the chain. It exits with code 1 if the log was edited.
+- **Complete retrieval, or a statement that it is not.** A run retrieves every record the source
+  reports, up to 10,000, paging arXiv as needed. A run that retrieved fewer records than
+  reported is marked incomplete, and the command says so.
+- **Runtime dependency:** duckdb (ADR-0004).
+
+### Changed
+
+- **`lrcc search` stores by default.** The mode that stores nothing is now `--preview`.
+- **ADR-0004 amended by ADR-0012:** the store has a port, with one implementation, because a
+  feature may not import an adapter.
+
 ## [0.3.0] - Unreleased
 
 The first search: a protocol's string run against PubMed or arXiv, through a client that contacts

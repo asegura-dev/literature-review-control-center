@@ -11,8 +11,9 @@ exists; where something is still planned, it says so. The decisions behind it ar
 
 ## Status
 
-As of v0.3.0 every layer holds code. The first port exists, the source port, with its two
-adapters, and one HTTP client through which every request goes.
+As of v0.5.0 every layer holds code. There are two ports: the source port, with PubMed and
+arXiv behind it, and the store port, with DuckDB behind it. Every request goes through one
+HTTP client.
 
 ## The layout
 
@@ -26,21 +27,25 @@ src/lrcc/
 │   ├── protocol.py     Protocol format 1, and the digest over the file's bytes
 │   ├── workspace.py    Workspace: the boundary of ADR-0006
 │   ├── reviews.py      read a review's protocol from the workspace
-│   └── record.py       Record and SearchResult: what a source said, made uniform
+│   ├── record.py       Record, RawResponse and SearchResult: what a source said
+│   └── runs.py         Run, and the hash chain of the run log
 ├── ports/
-│   └── source.py       the source port: a query and a limit in, a SearchResult out
+│   ├── source.py       the source port: a query and a limit in, a SearchResult out
+│   └── store.py        the store port: the run log, records and raw responses
 ├── adapters/
 │   ├── http.py         the one HTTP client: allowlist, rate limit, retries
-│   └── sources/        pubmed.py, arxiv.py, and safe_xml.py (defusedxml)
+│   ├── sources/        pubmed.py, arxiv.py, and safe_xml.py (defusedxml)
+│   └── storage/        duckdb_store.py: one database per review, responses as files
 ├── features/
 │   ├── configuration.py  read the configuration, open its workspace
 │   ├── init/             create a review from the synthetic protocol template
 │   ├── validate.py       check a protocol and report its digest
-│   └── search.py         run the protocol's string on one source, as a preview
+│   ├── search.py         run the protocol's string on one source: a stored run, or a preview
+│   └── status.py         list a review's runs and verify its log
 └── views/
     └── cli/
         ├── app.py          the `lrcc` command (Typer and Rich)
-        └── composition.py  builds the HTTP client and a source from the configuration
+        └── composition.py  builds the HTTP client, a source and a store
 ```
 
 The hexagon (`domain`, `ports`, `adapters`) is horizontal and shared: one `Record`, one hash
@@ -114,11 +119,26 @@ library, so the allowlist in that one client is the only way out (ADR-0011). The
 a request before sending it when the network is off, when the host is not listed, or when the
 address is not plain HTTPS, and it never follows a redirect.
 
+## What a run leaves behind
+
+```
+reviews/<review_id>/
+├── protocol.yaml
+├── review.duckdb                      the run log and the records
+└── runs/
+    └── 0001-20260930T141500Z-pubmed/
+        ├── response-0001.raw          each answer, byte for byte
+        └── response-0002.raw
+```
+
+A log entry is one canonical JSON document. It names each response file with its size and
+SHA-256, and its own hash covers the entry and the hash of the entry before it (ADR-0012).
+`lrcc status` recomputes that chain every time it is run.
+
 ## Planned
 
-- **Storage (ADR-0004, from v0.5.0):**
-  - one DuckDB file per review, raw responses stored as files beside it with their SHA-256;
-  - no storage port.
+- **Replay and verification (v0.7.0):** rederive every record from the stored responses, and
+  check the stored files against the log.
 - **Identity (ADR-0006, from v0.9.0):** `work_id` and its catalog, with deduplication.
 - **Integration (ADR-0005, from v0.14.0):** the review bundle, `--json` on every command, and
   the public Python API in `lrcc.api`.

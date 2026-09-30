@@ -13,16 +13,19 @@ stored response and a recorded decision. To get there, it:
 
 ## Status
 
-**v0.3.0: a review can be created, its protocol checked, and its search strings previewed on
-PubMed and arXiv. Nothing is stored yet.** LRCC has three commands:
+**v0.5.0: a review can be created, its protocol checked, and its search strings run on PubMed
+and arXiv as stored runs. It has been tested against synthetic answers only: no real search has
+been run yet.** LRCC has four commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;
 - `lrcc validate` checks the protocol and prints the SHA-256 to register;
-- `lrcc search` runs the protocol's search string on one source and prints the count the
-  source reports and the records retrieved.
+- `lrcc search` runs the protocol's search string on one source and stores the run: every raw
+  response with its digest, the records, and an entry in a hash-chained log. With `--preview`
+  it stores nothing;
+- `lrcc status` lists a review's runs and checks that its log was not edited.
 
-A search is a preview, not a run: stored responses, the run log and replay arrive in v0.5.0 and
-v0.7.0. The route to v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
+Replay from the stored responses arrives in v0.7.0, and deduplication and screening after it.
+The route to v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
 
 ## Try it
 
@@ -63,8 +66,13 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
    ```
 
    ```powershell
-   uv run lrcc search my-review --source arxiv --limit 10 --config C:\lrcc\config.yaml
+   uv run lrcc search my-review --source arxiv --preview --config C:\lrcc\config.yaml
+   uv run lrcc search my-review --source arxiv --config C:\lrcc\config.yaml
+   uv run lrcc status my-review --config C:\lrcc\config.yaml
    ```
+
+   The first line previews what the string returns and stores nothing. The second stores a
+   run. The third lists the runs and verifies the log.
 
    `min_interval` is the pause, in seconds, between two requests to that host. The values
    above follow each service's published limits.
