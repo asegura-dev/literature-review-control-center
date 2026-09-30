@@ -5,7 +5,7 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
-## [0.0.1] - Unreleased
+## [0.0.1] - 2026-09-29
 
 The scaffold: an empty package, the gate that will judge everything added to it, and the decisions
 that shape it.
@@ -40,3 +40,5 @@ that shape it.
   - decision records ADR-0001 to ADR-0009, with an index;
   - the phase notes of v0.0.1.
 - **License.** The MIT license (ADR-0009).
+
+[0.0.1]: https://github.com/asegura-dev/literature-review-control-center/releases/tag/v0.0.1
