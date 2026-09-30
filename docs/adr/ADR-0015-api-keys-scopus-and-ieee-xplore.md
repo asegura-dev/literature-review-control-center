@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted (built in v0.8.0)
 date: 2026-09-30
 decision-makers: Alejandro Segura
 ---
@@ -139,3 +139,33 @@ Importing manual exports (RIS), and notification of long runs, stay in v0.8.0 fo
 
 - LACC's ADR-030, "Secrets come from a `.env` beside the configuration".
 - ADR-0011 (the one HTTP client), ADR-0012 (what a run records).
+
+## Implementation
+
+**v0.8.0** built this record, while it was still proposed. Details settled while building it:
+
+- **Where things are.**
+  - The keys: `src/lrcc/domain/secrets.py`. `load_settings`, in
+    `src/lrcc/features/configuration.py`, reads them together with the configuration.
+  - Redaction, the refusal of a repeated key, and scrubbed quotes: `src/lrcc/adapters/http.py`.
+  - The sources: `src/lrcc/adapters/sources/ieee.py` and `scopus.py`. Both read JSON through
+    `safe_json.py`.
+- **A key is asked for only when a request is made.** A missing key stops the command before
+  anything is sent. A replay sends nothing, so it needs no key.
+- **A refused request quotes the answer.** The first 600 bytes become one line, every key sent is
+  replaced, and the quote is cut to 300 characters. A refusal other than 429 or 5xx is never
+  retried.
+- **An answer that is not JSON, or is nested too deeply to read, is refused**, naming the source.
+- **Every paging source keeps the count its first page reported.** In a test, Scopus's last page
+  reported zero. arXiv and IEEE Xplore now read the count the same way.
+- **The first real requests**, on 2026-09-30:
+  - IEEE Xplore answered `Developer Inactive`, while the key's status on IEEE's portal was
+    "waiting";
+  - Scopus first answered `APIKEY_INVALID`, then accepted the key;
+  - from outside the institution's network, Scopus answered the gold check in the STANDARD view
+    and refused the COMPLETE view;
+  - no answer printed a key.
+- **The two points left open under Consequences:**
+  - Scopus refuses the COMPLETE view outside the institution's network; ADR-0016 covers that
+    case with the web interface's export;
+  - IEEE Xplore combining `querytext` with `doi` has not been seen yet.

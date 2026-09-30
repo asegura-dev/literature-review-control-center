@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted (built in v0.8.0)
 date: 2026-09-30
 decision-makers: Alejandro Segura
 ---
