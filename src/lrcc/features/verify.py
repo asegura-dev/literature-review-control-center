@@ -3,7 +3,8 @@
 ``verify`` trusts nothing it reads. It recomputes the hash chain, the SHA-256 and size of every
 raw response on disk, and the digest of the records in the database, and compares each with the
 log. It also reports what the log does not know about: a file or a run folder nobody logged.
-The chain of a person's decisions on candidate pairs is recomputed too (ADR-0018).
+The chains of a person's decisions, on candidate pairs (ADR-0018) and on screening (ADR-0019),
+are recomputed too, and every kept protocol is checked against the digest it is named by.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from lrcc.domain.fuzzy import decision_chain_problems
 from lrcc.domain.reviews import load_review_protocol
 from lrcc.domain.runs import chain_problems, records_digest, sha256_hex
+from lrcc.domain.screening import screening_chain_problems
 from lrcc.domain.workspace import Workspace
 from lrcc.ports.store import ReviewStore
 
@@ -83,4 +85,10 @@ def verify_review(workspace: Workspace, review_id: str, store: ReviewStore) -> V
         if folder not in logged_runs
     )
     problems.extend(decision_chain_problems(store.decisions()))
+    problems.extend(screening_chain_problems(store.screenings()))
+    problems.extend(
+        f"protocols/{name}: its content does not match its name"
+        for name, data in store.protocols().items()
+        if name != f"{sha256_hex(data)}.yaml"
+    )
     return VerifyResult(review_id, len(log), responses, tuple(problems))

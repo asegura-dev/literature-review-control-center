@@ -128,7 +128,7 @@ def test_a_person_confirms_the_preprint_and_rejects_the_lookalike(
 
     data = json.loads(lrcc("dedupe", "example", "--config", review, "--json").stdout)
     assert data["decisions"] == 2
-    assert data["current_protocol"] == {
+    assert data["counted_runs"] == {
         "records": 4,
         "works": 4,
         "groups": 3,

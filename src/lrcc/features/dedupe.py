@@ -28,23 +28,19 @@ from lrcc.domain.fuzzy import (
     CANDIDATE_MIN,
     SAME,
     Candidate,
-    LoggedDecision,
     PairDecision,
     WorkFacts,
     candidate_pairs,
     contradictions,
-    current_decisions,
-    decision_chain_problems,
     groups,
     pair_of,
     pair_score,
-    work_facts,
 )
 from lrcc.domain.pairs_csv import read_pairs, write_pairs
-from lrcc.domain.record import Record
+from lrcc.domain.review_works import ReviewState, check_state, require_linked, review_works
 from lrcc.domain.reviews import load_review_protocol
-from lrcc.domain.runs import LoggedRun, chain_problems, records_digest, timestamp
-from lrcc.domain.works import NEW, Link, link_records
+from lrcc.domain.runs import timestamp
+from lrcc.domain.works import NEW, link_records
 from lrcc.domain.workspace import Workspace
 from lrcc.ports.catalog import WorkCatalog
 from lrcc.ports.store import ReviewStore
@@ -52,13 +48,13 @@ from lrcc.ports.store import ReviewStore
 
 @dataclass(frozen=True)
 class RunCount:
-    """One run's records: how many first named a work, and whether it used the current protocol."""
+    """One run's records: how many first named a work, and whether the review counts the run."""
 
     run_id: str
     source: str
     records: int
     first_seen: int
-    current_protocol: bool
+    counted: bool
 
     @property
     def already_seen(self) -> int:
@@ -74,9 +70,9 @@ class DedupeResult:
     linked_now: int
     joined_by: dict[str, int]
     runs: tuple[RunCount, ...]
-    current_records: int
-    current_works: int
-    current_groups: int
+    counted_records: int
+    counted_works: int
+    counted_groups: int
     works: int
     groups: int
     unstable: int
@@ -84,13 +80,13 @@ class DedupeResult:
 
     @property
     def by_identifiers(self) -> int:
-        """Duplicates of the current protocol's runs removed by a shared identifier."""
-        return self.current_records - self.current_works
+        """Duplicates of the counted runs removed by a shared identifier."""
+        return self.counted_records - self.counted_works
 
     @property
     def by_person(self) -> int:
-        """Duplicates of the current protocol's runs removed by a person's ``same``."""
-        return self.current_works - self.current_groups
+        """Duplicates of the counted runs removed by a person's ``same``."""
+        return self.counted_works - self.counted_groups
 
     def as_dict(self) -> dict[str, object]:
         """Return the result as JSON-ready data."""
@@ -102,11 +98,11 @@ class DedupeResult:
             "groups": self.groups,
             "unstable": self.unstable,
             "decisions": self.decisions,
-            "current_protocol": {
-                "records": self.current_records,
-                "works": self.current_works,
-                "groups": self.current_groups,
-                "duplicates": self.current_records - self.current_groups,
+            "counted_runs": {
+                "records": self.counted_records,
+                "works": self.counted_works,
+                "groups": self.counted_groups,
+                "duplicates": self.counted_records - self.counted_groups,
                 "by_identifiers": self.by_identifiers,
                 "by_person": self.by_person,
             },
@@ -117,7 +113,7 @@ class DedupeResult:
                     "records": run.records,
                     "first_seen": run.first_seen,
                     "already_seen": run.already_seen,
-                    "current_protocol": run.current_protocol,
+                    "counted": run.counted,
                 }
                 for run in self.runs
             ],
@@ -180,91 +176,24 @@ class DecideResult:
         }
 
 
-@dataclass(frozen=True)
-class _State:
-    protocol_sha256: str
-    log: tuple[LoggedRun, ...]
-    records: dict[str, tuple[Record, ...]]
-    links: tuple[Link, ...]
-    decisions: tuple[LoggedDecision, ...]
-
-
-@dataclass(frozen=True)
-class _Works:
-    facts: dict[str, WorkFacts]
-    order: list[str]
-    identities: dict[str, str]
-    current: dict[tuple[str, str], PairDecision]
-    group_of: dict[str, str]
-    unstable: int
-
-
 def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def _load(workspace: Workspace, review_id: str, store: ReviewStore) -> _State:
+def _load(workspace: Workspace, review_id: str, store: ReviewStore) -> ReviewState:
     loaded = load_review_protocol(workspace, review_id)
     log = store.log()
-    if chain_problems(log):
-        raise ReviewError(
-            f"the run log of {review_id!r} does not verify",
-            ["run lrcc status to see where; nothing was changed"],
-        )
-    records = {}
-    for logged in log:
-        run = logged.run
-        records[run.run_id] = store.records(run.run_id)
-        if records_digest(records[run.run_id]) != run.records_sha256:
-            raise ReviewError(
-                f"the records of {run.run_id} do not match the log",
-                ["run lrcc verify; nothing was changed"],
-            )
-    decisions = store.decisions()
-    if decision_chain_problems(decisions):
-        raise ReviewError(
-            f"the decisions log of {review_id!r} does not verify",
-            ["run lrcc verify to see where; nothing was changed"],
-        )
-    return _State(loaded.sha256, log, records, store.links(), decisions)
-
-
-def _works(review_id: str, state: _State, catalog: WorkCatalog) -> _Works:
-    facts = work_facts(
-        [(link, state.records[link.run_id][link.position - 1]) for link in state.links]
+    state = ReviewState(
+        review_id=review_id,
+        protocol_sha256=loaded.sha256,
+        strings={name: entry.query for name, entry in loaded.protocol.sources.items()},
+        log=log,
+        records={logged.run.run_id: store.records(logged.run.run_id) for logged in log},
+        links=store.links(),
+        decisions=store.decisions(),
     )
-    known = catalog.works()
-    missing = set(facts) - set(known)
-    if missing:
-        raise ReviewError(
-            f"the catalog does not hold {len(missing)} of the works {review_id!r} links to",
-            ["it may have been deleted; rebuilding it by replay is not built yet"],
-        )
-    order = [work_id for work_id in known if work_id in facts]
-    identities = {work_id: known[work_id].identity for work_id in order}
-    current = current_decisions(state.decisions)
-    return _Works(
-        facts=facts,
-        order=order,
-        identities=identities,
-        current=current,
-        group_of=groups(order, identities, current),
-        unstable=sum(known[work_id].unstable for work_id in order),
-    )
-
-
-def _require_linked(review_id: str, state: _State) -> None:
-    linked = {(link.run_id, link.position) for link in state.links}
-    unlinked = sum(
-        (run_id, position) not in linked
-        for run_id, records in state.records.items()
-        for position in range(1, len(records) + 1)
-    )
-    if unlinked:
-        raise ReviewError(
-            f"{unlinked} record(s) of {review_id!r} are not linked to works yet",
-            [f"run first: lrcc dedupe {review_id}"],
-        )
+    check_state(state)
+    return state
 
 
 def dedupe_review(
@@ -309,13 +238,9 @@ def dedupe_review(
     store.save_links(result.links)
 
     state = replace(state, links=store.links())
-    works = _works(review_id, state, catalog)
-    current = {
-        logged.run.run_id
-        for logged in state.log
-        if logged.run.protocol_sha256 == state.protocol_sha256
-    }
-    current_works = {link.work_id for link in state.links if link.run_id in current}
+    works = review_works(state, catalog.works())
+    counted = state.counted
+    counted_works = {link.work_id for link in state.links if link.run_id in counted}
     return DedupeResult(
         review_id=review_id,
         linked_now=len(result.links),
@@ -333,13 +258,13 @@ def dedupe_review(
                     link.run_id == logged.run.run_id and link.matched_by == NEW
                     for link in state.links
                 ),
-                current_protocol=logged.run.run_id in current,
+                counted=logged.run.run_id in counted,
             )
             for logged in state.log
         ),
-        current_records=sum(link.run_id in current for link in state.links),
-        current_works=len(current_works),
-        current_groups=len({works.group_of[work_id] for work_id in current_works}),
+        counted_records=sum(link.run_id in counted for link in state.links),
+        counted_works=len(counted_works),
+        counted_groups=len({works.group_of[work_id] for work_id in counted_works}),
         works=len(works.facts),
         groups=len(set(works.group_of.values())),
         unstable=works.unstable,
@@ -375,8 +300,8 @@ def list_candidates(
         StoreError: If the catalog or the review's database cannot be read.
     """
     state = _load(workspace, review_id, store)
-    _require_linked(review_id, state)
-    works = _works(review_id, state, catalog)
+    require_linked(state)
+    works = review_works(state, catalog.works())
     pairs = candidate_pairs(works.facts, works.group_of, set(works.current), minimum)
     if csv_path is not None:
         try:
@@ -436,8 +361,8 @@ def decide_pairs(
             ["add a line reviewer: Your Name to the configuration file"],
         )
     state = _load(workspace, review_id, store)
-    _require_linked(review_id, state)
-    works = _works(review_id, state, catalog)
+    require_linked(state)
+    works = review_works(state, catalog.works())
     try:
         data = path.read_bytes()
     except OSError as problem:

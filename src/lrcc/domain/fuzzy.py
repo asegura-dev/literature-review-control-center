@@ -19,7 +19,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, ConfigDict
 
 from lrcc.domain.record import Record
-from lrcc.domain.runs import GENESIS, canonical, entry_hash
+from lrcc.domain.runs import ChainLink, canonical, link_problems
 from lrcc.domain.works import Link, normalize_title
 
 #: The default threshold, measured on the first review's real records (v0.9.0 phase notes). It
@@ -302,15 +302,15 @@ def decision_chain_problems(log: Sequence[LoggedDecision]) -> list[str]:
     Returns:
         One line per entry whose link, hash or canonical form does not match.
     """
-    problems = []
-    expected_prev = GENESIS
-    for number, logged in enumerate(log, start=1):
-        name = f"decision {number} ({logged.decision.work_a} / {logged.decision.work_b})"
-        if logged.prev_hash != expected_prev:
-            problems.append(f"{name}: does not follow the entry before it")
-        if entry_hash(logged.prev_hash, logged.entry) != logged.entry_hash:
-            problems.append(f"{name}: its content does not match its hash")
-        if logged.decision.entry() != logged.entry:
-            problems.append(f"{name}: its entry is not in canonical form")
-        expected_prev = logged.entry_hash
-    return problems
+    return link_problems(
+        [
+            ChainLink(
+                f"decision {number} ({logged.decision.work_a} / {logged.decision.work_b})",
+                logged.entry,
+                logged.prev_hash,
+                logged.entry_hash,
+                logged.decision.entry(),
+            )
+            for number, logged in enumerate(log, start=1)
+        ]
+    )
