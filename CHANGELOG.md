@@ -7,7 +7,8 @@ break anything; every break is named here.
 
 ## [0.9.0] - Unreleased
 
-Records become works: exact duplicates are joined through the identifiers they share.
+Records become works. Exact duplicates are joined through the identifiers they share, and a
+person confirms the rest, which are proposed by title.
 
 ### Added
 
@@ -25,11 +26,29 @@ Records become works: exact duplicates are joined through the identifiers they s
 - **`work_id` and the work catalog** (ADR-0006): `library/catalog.duckdb`, shared by the
   workspace's reviews. A work is named once, as `<author><year>-<hash6>`, and every identifier
   met later becomes an alias.
+- **`lrcc candidates REVIEW_ID [--min 0.80] [--csv FILE]`.** It lists the pairs of works whose
+  titles score 0.80 or more and that no identifier joined, for a person to judge (ADR-0018).
+  The default comes from the first review's real records. With `--csv` it writes the pairs to a
+  new file, never over an existing one, escaping cells that begin like a formula.
+- **`lrcc decide REVIEW_ID FILE`.** It reads that file back once a person has filled the
+  `decision` column with `same` or `different`, and appends each decision to a hash-chained log.
+  The log records the reviewer, the time, the score and the note.
+  - Works joined by `same` form a group, named by the published version over the preprint.
+  - A later decision on a pair is a new entry that replaces the earlier one.
+  - Empty rows wait for later.
+  - An unknown decision or work, a pair given twice with two decisions, or a contradiction
+    refuses the whole file.
+- **`reviewer` in the configuration**, the person decisions are attributed to. `decide` refuses
+  to run without it.
 
 ### Changed
 
-- **A review's database gains a `links` table**, one row per record with its work and the
-  reason it joined. It is created, empty, the next time any command opens the database.
+- **A review's database gains a `links` table**, one row per record with its work and the reason
+  it joined, and a `decisions` table, the person's log. Both are created, empty, the next time
+  any command opens the database.
+- **`dedupe` counts groups.** For the current protocol's runs it reports the works after
+  deduplication, and the duplicates removed by identifiers and by a person.
+- **`verify` checks the decisions' chain** as it checks the runs'.
 
 ## [0.8.0] - Unreleased
 

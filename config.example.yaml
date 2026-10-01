@@ -8,6 +8,10 @@
 # folder outside every git repository and outside OneDrive; LRCC refuses it otherwise.
 workspace: C:\Users\you\lrcc-workspace
 
+# The person every recorded decision is attributed to. It is optional, but lrcc decide refuses to
+# run without it rather than record a decision by nobody.
+# reviewer: Your Name
+
 # The network is off unless enabled is true. LRCC contacts only the hosts listed here, and waits
 # min_interval seconds between two requests to the same host.
 network:

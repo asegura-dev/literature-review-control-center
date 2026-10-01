@@ -36,6 +36,8 @@ src/lrcc/
 │   ├── runs.py         Run, and the hash chain of the run log
 │   ├── ris.py          the RIS reader: a database's export into records
 │   ├── works.py        Work, identifiers, work_id, and the exact linking of records
+│   ├── fuzzy.py        candidate pairs by title, a person's decisions, their chain, groups
+│   ├── pairs_csv.py    the candidate pairs as a CSV file, written and read back
 │   ├── gold.py         GoldSet: works known to be relevant, and their identifiers
 │   └── secrets.py      API keys from the .env beside the configuration, never shown
 ├── ports/
@@ -53,7 +55,7 @@ src/lrcc/
 │   ├── validate.py       check a protocol and report its digest
 │   ├── search.py         run the protocol's string on one source: a stored run, or a preview
 │   ├── imports.py        store a database's RIS export of the string as a run
-│   ├── dedupe.py         join records into works through shared identifiers
+│   ├── dedupe.py         join records into works; list candidate pairs; record decisions
 │   ├── status.py         list a review's runs and verify its log
 │   ├── check_query.py    test a string against the gold set: retrieved, missed, not indexed
 │   ├── verify.py         check every stored response and record against the log
@@ -155,7 +157,7 @@ library/
 └── catalog.duckdb                     every work of the workspace, and its identifiers
 reviews/<review_id>/
 ├── protocol.yaml
-├── review.duckdb                      the run log, the records, and each record's work
+├── review.duckdb                      the run log, the records, each record's work, decisions
 └── runs/
     └── 0001-20260930T141500Z-pubmed/
         ├── response-0001.raw          each answer, byte for byte
@@ -202,9 +204,19 @@ Identity is workspace-wide, because a work can belong to several reviews (ADR-00
 The catalog is written first, so a pass interrupted between the two leaves only identifiers that
 the next pass finds again.
 
+What no identifier joins, a person may (ADR-0018). `lrcc candidates` lists the pairs of works
+whose titles score 0.80 or more. `lrcc decide` reads back the CSV file the person filled, and
+appends each `same` or `different` to a second hash-chained log in the review's database,
+attributed to the configuration's `reviewer`. Works joined by `same` form a group, the unit the
+review counts. Groups stay in the review: the catalog never merges two `work_id`s.
+
+The three commands are one slice, `features/dedupe.py`, because they share the loading of a
+review and its checks. Comparing every pair of titles is the one slow step, so only
+`candidates` does it.
+
 ## Planned
 
-- **Fuzzy deduplication (v0.9.0, second part):** title matches proposed to a person, with a
-  threshold measured on the review's records, and merges of two works.
+- **Screening (v0.10.0):** title and abstract decisions on each group, in the same kind of
+  hash-chained log.
 - **Integration (ADR-0005, from v0.14.0):** the review bundle, `--json` on every command, and
   the public Python API in `lrcc.api`.
