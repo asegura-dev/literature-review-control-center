@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from lrcc.domain.record import RawResponse, Record, SearchResult
 from lrcc.domain.runs import (
     GENESIS,
+    Imported,
     LoggedRun,
     Run,
     build_run,
@@ -87,6 +88,45 @@ def test_the_entry_is_canonical_json() -> None:
     entry = _run().entry()
     assert json.loads(entry)["run_id"] == "0001-20260930T141500Z-arxiv"
     assert entry == json.dumps(json.loads(entry), sort_keys=True, separators=(",", ":"))
+
+
+def test_an_entry_written_before_imports_keeps_its_form() -> None:
+    """A search's entry has no ``imported`` key, so a log written by v0.7.0 still verifies."""
+    search = _run()
+    entry = search.entry()
+    assert "imported" not in json.loads(entry)
+    assert Run.model_validate_json(entry).entry() == entry
+    assert search.searched_on == "2026-09-30"
+
+    imported = build_run(
+        sequence=2,
+        started=STARTED,
+        finished=FINISHED,
+        protocol_sha256="p" * 64,
+        result=_result(),
+        lrcc_version="0.8.0",
+        imported=Imported(format="ris", searched_on="2026-09-28"),
+    )
+    assert json.loads(imported.entry())["imported"] == {
+        "format": "ris",
+        "searched_on": "2026-09-28",
+    }
+    assert imported.searched_on == "2026-09-28"
+    assert chain_problems(_log(search, imported)) == []
+
+    # Writing the empty field out would be another form of the same run, and is caught.
+    padded = json.dumps(
+        {**json.loads(entry), "imported": None}, sort_keys=True, separators=(",", ":")
+    )
+    logged = LoggedRun(
+        run=Run.model_validate_json(padded),
+        entry=padded,
+        prev_hash=GENESIS,
+        entry_hash=entry_hash(GENESIS, padded),
+    )
+    assert chain_problems([logged]) == [
+        "0001-20260930T141500Z-arxiv: its entry is not in canonical form"
+    ]
 
 
 def test_the_records_digest_depends_on_content_and_order() -> None:

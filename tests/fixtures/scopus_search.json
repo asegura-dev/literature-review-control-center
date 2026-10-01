@@ -1,0 +1,34 @@
+{
+  "_synthetic": "Written by hand for LRCC's tests. It holds no Scopus content: every title, author, abstract, identifier and DOI is invented. Only the shape follows a Scopus Search answer in the COMPLETE view.",
+  "search-results": {
+    "opensearch:totalResults": "3",
+    "opensearch:startIndex": "0",
+    "opensearch:itemsPerPage": "2",
+    "cursor": {"@current": "*", "@next": "SYNTHETICCURSOR1"},
+    "entry": [
+      {
+        "@_fa": "true",
+        "eid": "2-s2.0-90000000001",
+        "dc:identifier": "SCOPUS_ID:90000000001",
+        "dc:title": "A synthetic Scopus title",
+        "dc:creator": "Example A.",
+        "author": [
+          {"authname": "Example A."},
+          {"authname": "Sample G."}
+        ],
+        "prism:publicationName": "Journal of Synthetic Examples",
+        "prism:coverDate": "2020-05-01",
+        "prism:doi": "10.0000/SYNTHETIC.SCOPUS.1",
+        "dc:description": "An invented Scopus abstract."
+      },
+      {
+        "@_fa": "true",
+        "eid": "2-s2.0-90000000002",
+        "dc:identifier": "SCOPUS_ID:90000000002",
+        "dc:title": "A second synthetic Scopus title",
+        "dc:creator": "Specimen A.",
+        "prism:coverDate": "2018-11-30"
+      }
+    ]
+  }
+}

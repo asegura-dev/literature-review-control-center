@@ -1,0 +1,28 @@
+TY  - JOUR
+AU  - Example, A.
+AU  - Sample, G.
+TI  - A synthetic Scopus title
+PY  - 2020
+T2  - Journal of Synthetic Examples
+VL  - 12
+SP  - 1
+EP  - 9
+DO  - 10.0000/SYNTHETIC.SCOPUS.1
+UR  - https://www.scopus.com/inward/record.uri?eid=2-s2.0-90000000001&doi=10.0000%2fSYNTHETIC.SCOPUS.1&partnerID=40
+AB  - An invented Scopus abstract.
+N1  - Synthetic: written by hand for LRCC's tests. Every title, author, abstract, identifier and DOI is invented; only the shape follows a Scopus RIS export.
+DB  - Scopus
+M3  - Article
+ER  -
+
+TY  - CONF
+AU  - Specimen, A.
+TI  - A second synthetic Scopus title
+PY  - 2018
+T2  - Proceedings of a Synthetic Conference
+UR  - https://www.scopus.com/inward/record.uri?eid=2-s2.0-90000000002&partnerID=40
+AB  - Another invented Scopus abstract.
+N1  - Synthetic: written by hand for LRCC's tests. Every title, author, abstract, identifier and DOI is invented; only the shape follows a Scopus RIS export.
+DB  - Scopus
+M3  - Conference Paper
+ER  -

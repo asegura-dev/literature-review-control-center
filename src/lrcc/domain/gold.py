@@ -27,7 +27,7 @@ GOLD_FILE = "gold.yaml"
 
 _DOI = re.compile(r"10\.\d{4,9}/\S+")
 _PMID = re.compile(r"[1-9][0-9]{0,9}")
-#: New-style (``2508.02104``) or old-style (``cs/0112017``) arXiv identifiers, without version.
+#: New-style (``1501.00001``) or old-style (``cs/0112017``) arXiv identifiers, without version.
 _ARXIV = re.compile(r"\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Za-z-]+)?/\d{7}")
 _DOI_PREFIXES = ("https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "doi:")
 
@@ -40,7 +40,7 @@ def _doi(value: str | None) -> str | None:
         if text.lower().startswith(prefix):
             text = text[len(prefix) :]
     if not _DOI.fullmatch(text):
-        raise ValueError("must be a DOI such as 10.1109/TMI.2019.2963882")
+        raise ValueError("must be a DOI such as 10.1000/182")
     return text.lower()
 
 
@@ -54,8 +54,8 @@ def _pmid(value: str | int | None) -> str | None:
 
 
 def _arxiv_is_text(value: object) -> object:
-    # YAML reads an unquoted 2508.02104 as a number. Converting it back is unsafe: 2508.02100
-    # would come back as 2508.021, a different identifier. So a number is refused, never fixed.
+    # YAML reads an unquoted 1501.00001 as a number. Converting it back is unsafe: 1501.00010
+    # would come back as 1501.0001, a different identifier. So a number is refused, never fixed.
     if isinstance(value, int | float):
         raise ValueError(
             f"write the arXiv identifier in quotes, as '{value}': unquoted, YAML reads it as a"
@@ -70,7 +70,7 @@ def _arxiv(value: str | None) -> str | None:
     text = value.strip().removeprefix("arXiv:").removeprefix("arxiv:")
     text = re.sub(r"v\d+$", "", text)
     if not _ARXIV.fullmatch(text):
-        raise ValueError("must be an arXiv identifier such as 2508.02104")
+        raise ValueError("must be an arXiv identifier such as 1501.00001")
     return text
 
 

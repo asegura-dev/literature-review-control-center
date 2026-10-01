@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted (built in v0.7.0)
 date: 2026-09-30
 decision-makers: Alejandro Segura
 ---
@@ -44,8 +44,8 @@ of a DOI, a PMID or an arXiv identifier, and an optional note. Identifiers are n
 - DOIs lose any resolver prefix and are lowercased;
 - arXiv identifiers lose the `arXiv:` prefix and any version suffix.
 
-**An unquoted arXiv identifier is refused, not repaired.** YAML reads `2508.02104` as a number,
-and a number such as `2508.02100` would come back as `2508.021`, a different identifier. The
+**An unquoted arXiv identifier is refused, not repaired.** YAML reads `1501.00001` as a number,
+and a number such as `1501.00010` would come back as `1501.0001`, a different identifier. The
 error says to quote it.
 
 ### Two questions per work
@@ -106,3 +106,26 @@ error says to quote it.
 ## More Information
 
 - The roadmap, v0.6.0; the brief, section 4, step 2.
+
+## Implementation
+
+**v0.7.0** built this record while it was still proposed. The maintainer accepted it on
+2026-09-30. Details settled while building and first using it:
+
+- **Where things are.**
+  - The gold set: `src/lrcc/domain/gold.py`, read by `load_gold_set` in
+    `src/lrcc/domain/reviews.py`.
+  - The check: `src/lrcc/features/check_query.py`.
+  - Each source answers through its adapter's `holds`.
+- **Each problem in a gold set is named once.** The first version reported a bad identifier once
+  for each branch of its optional type. When the only work was bad, it also reported the list as
+  empty. Both were fixed.
+- **Seen against the real services** (the v0.6.0 phase notes):
+  - PubMed's `[doi]` field found every gold work that has a DOI, which was the open point under
+    Consequences;
+  - a control made every state appear on PubMed and arXiv, and a miss exited with code 1.
+- **Scopus and IEEE Xplore joined in v0.8.0** (ADR-0015).
+  - Scopus asks with `DOI("...")` and `PMID(...)` in the STANDARD view. Its first check, run from
+    outside the institution's network, retrieved every gold work Scopus can be asked about.
+  - IEEE Xplore asks by its `doi` parameter.
+- **A check is still not stored**, as Consequences says. That remains pending.

@@ -1,0 +1,11 @@
+{
+  "_synthetic": "Written by hand for LRCC's tests. It follows the shape of the answer Scopus gives when a query matches nothing: one entry holding an error field.",
+  "search-results": {
+    "opensearch:totalResults": "0",
+    "opensearch:startIndex": "0",
+    "opensearch:itemsPerPage": "0",
+    "entry": [
+      {"@_fa": "true", "error": "Result set was empty"}
+    ]
+  }
+}

@@ -113,7 +113,8 @@ def open_workspace(root: Path, environ: Mapping[str, str]) -> Workspace:
             f"workspace {resolved} is inside the synchronised folder {synchronised}",
             [
                 "a synchroniser would copy licensed PDFs to a third party (ADR-0006)",
-                "choose a local folder that is not synchronised, such as C:\\lrcc-workspace",
+                "choose a folder in your user profile that is not synchronised, such as"
+                " C:\\Users\\you\\lrcc-workspace: other accounts cannot read it there",
             ],
         )
     return Workspace(resolved)

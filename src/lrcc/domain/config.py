@@ -22,7 +22,8 @@ _HOST = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)*")
 def _absolute(value: str) -> str:
     if not Path(value).is_absolute():
         raise ValueError(
-            "must be an absolute path, such as C:\\lrcc-workspace or /home/you/lrcc-workspace"
+            "must be an absolute path, such as C:\\Users\\you\\lrcc-workspace or"
+            " /home/you/lrcc-workspace"
         )
     return value
 

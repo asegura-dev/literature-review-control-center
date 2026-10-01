@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from importlib.metadata import version
 from urllib.parse import urlencode, urlsplit
 
@@ -59,36 +60,78 @@ class HttpClient:
             headers={"User-Agent": f"lrcc/{version('literature-review-control-center')}"},
         )
 
-    def fetch(self, url: str, params: Mapping[str, str]) -> RawResponse:
+    def fetch(
+        self,
+        url: str,
+        params: Mapping[str, str],
+        *,
+        secret_params: Mapping[str, str] | None = None,
+        secret_headers: Mapping[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> RawResponse:
         """Fetch ``url`` and return the answer with the address that was asked.
+
+        The recorded address holds the ordinary parameters. A secret parameter is recorded by
+        name with the value ``[redacted]``, and headers are not recorded at all (ADR-0015).
 
         Args:
             url: An HTTPS URL on an allowed host.
-            params: The query parameters.
+            params: The query parameters, recorded as sent.
+            secret_params: Query parameters holding keys: sent, never recorded.
+            secret_headers: Headers holding keys: sent, never recorded.
+            headers: Other headers to send.
 
         Returns:
-            The body exactly as received, and the full address, so a run can store both.
+            The body exactly as received, and the address with every key redacted.
 
         Raises:
             NetworkError: As :meth:`get`.
         """
-        return RawResponse(url=f"{url}?{urlencode(params)}", body=self.get(url, params))
+        body = self.get(
+            url, params, secret_params=secret_params, secret_headers=secret_headers, headers=headers
+        )
+        redacted = {name: "[redacted]" for name in (secret_params or {})}
+        recorded = urlencode({**params, **redacted}, safe="[]")
+        return RawResponse(url=f"{url}?{recorded}", body=body)
 
-    def get(self, url: str, params: Mapping[str, str]) -> bytes:
+    def get(
+        self,
+        url: str,
+        params: Mapping[str, str],
+        *,
+        secret_params: Mapping[str, str] | None = None,
+        secret_headers: Mapping[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> bytes:
         """Fetch ``url`` and return the body of the answer.
 
         Args:
             url: An HTTPS URL on an allowed host.
             params: The query parameters.
+            secret_params: Query parameters holding keys.
+            secret_headers: Headers holding keys.
+            headers: Other headers to send.
 
         Returns:
             The response body.
 
         Raises:
-            NetworkError: If the request is refused, the host answers with an error, or it does
-                not answer after every attempt.
+            NetworkError: If the request is refused, the host answers with an error or with an
+                answer that repeats a key, or it does not answer after every attempt. No message
+                ever contains a key.
         """
         host = self._allowed_host(url)
+        secrets = tuple(
+            value
+            for value in (*(secret_params or {}).values(), *(secret_headers or {}).values())
+            if value
+        )
+        request = _Request(
+            url=url,
+            params={**params, **(secret_params or {})},
+            headers={**(headers or {}), **(secret_headers or {})},
+            secrets=secrets,
+        )
         retrying = Retrying(
             stop=stop_after_attempt(ATTEMPTS),
             wait=wait_exponential(multiplier=1, max=30),
@@ -97,10 +140,11 @@ class HttpClient:
             reraise=True,
         )
         try:
-            return retrying(self._get_once, host, url, params)
+            return retrying(self._get_once, host, request)
         except _Retryable as problem:
             raise NetworkError(
-                f"{host} did not answer after {ATTEMPTS} attempts", [str(problem)]
+                f"{host} did not answer after {ATTEMPTS} attempts",
+                [_scrub(str(problem), secrets)],
             ) from None
 
     def _allowed_host(self, url: str) -> str:
@@ -129,17 +173,50 @@ class HttpClient:
                 self._sleep(remaining)
         self._last_request[host] = self._clock()
 
-    def _get_once(self, host: str, url: str, params: Mapping[str, str]) -> bytes:
+    def _get_once(self, host: str, request: _Request) -> bytes:
         self._wait_for_turn(host)
         try:
-            response = self._client.get(url, params=dict(params))
+            response = self._client.get(
+                request.url, params=dict(request.params), headers=dict(request.headers)
+            )
         except httpx.TransportError as problem:
             raise _Retryable(f"{type(problem).__name__}: {problem}") from None
         status = response.status_code
         if status == 429 or status >= 500:
             raise _Retryable(f"HTTP {status}")
         if status != 200:
-            raise NetworkError(f"{host} answered HTTP {status}, so nothing was read")
+            # A refusal is not retried: for a service with a daily quota, a retry spends calls.
+            snippet = _snippet(response.content, request.secrets)
+            raise NetworkError(
+                f"{host} answered HTTP {status}, so nothing was read", [snippet] if snippet else []
+            )
         if len(response.content) > MAX_RESPONSE_BYTES:
             raise NetworkError(f"{host} answered with more than {MAX_RESPONSE_BYTES} bytes")
+        if any(secret.encode() in response.content for secret in request.secrets):
+            raise NetworkError(
+                f"{host} answered with a key this request sent, so the answer was not kept",
+                ["a stored answer is kept byte for byte, and must never hold a key (ADR-0015)"],
+            )
         return response.content
+
+
+@dataclass(frozen=True, repr=False)
+class _Request:
+    """What one request sends, and the values in it that must never be shown."""
+
+    url: str
+    params: Mapping[str, str]
+    headers: Mapping[str, str]
+    secrets: tuple[str, ...]
+
+
+def _scrub(text: str, secrets: tuple[str, ...]) -> str:
+    for secret in secrets:
+        text = text.replace(secret, "[redacted]")
+    return text
+
+
+def _snippet(body: bytes, secrets: tuple[str, ...]) -> str:
+    """Quote the start of an error answer, as one line, with any key replaced."""
+    text = " ".join(body[:600].decode("utf-8", errors="replace").split())
+    return _scrub(text, secrets)[:300]
