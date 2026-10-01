@@ -25,7 +25,9 @@ or through the RIS files their web interfaces export.
 - **Two sources, Scopus and IEEE Xplore.** `search` (stored or `--preview`), `check-query` and
   `replay` work with all four sources (ADR-0015).
   - IEEE Xplore uses the Metadata Search API, 200 records per call. It does not retry a refusal,
-    because the free key allows 200 calls a day.
+    because the free key allows 200 calls a day. Its gold check searches the DOI as a field of
+    the query, `("DOI":...)`, joined to the string by `AND`. The API's `doi` parameter ignores
+    the string, as a real control showed.
   - Scopus uses the Scopus Search API in the COMPLETE view, for abstracts, with cursor paging.
     The key and the institutional token go in headers.
 - **API keys from a `.env` beside the configuration file**, and from nowhere else. The real

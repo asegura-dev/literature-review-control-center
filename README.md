@@ -16,8 +16,8 @@ stored response and a recorded decision. To get there, it:
 **v0.8.0: a review can be created and its protocol checked. Its search strings can be run on
 PubMed, arXiv, Scopus and IEEE Xplore as stored runs, or imported from a database's RIS
 export, and those runs verified and replayed offline. PubMed and arXiv have been run against
-the real services, and Scopus has answered a real gold check. IEEE Xplore, whose key awaits
-approval, and the import have been tested against synthetic data only.** LRCC has eight
+the real services. Scopus has answered a real gold check, and IEEE Xplore a real preview and
+gold check. The import has been tested against synthetic data only.** LRCC has eight
 commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;

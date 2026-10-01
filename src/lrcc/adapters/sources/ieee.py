@@ -105,8 +105,10 @@ class IeeeSource:
     def holds(self, work: GoldWork, query: str | None) -> bool | None:
         """Say whether IEEE Xplore holds ``work``, and whether ``query`` retrieves it.
 
-        The work is looked up by its DOI. With a query, the string and the DOI are sent
-        together, and the API returns the records that satisfy both.
+        The DOI is searched as a field inside ``querytext``; with a query, the two are joined by
+        ``AND``. The API's own ``doi`` parameter is not used. Against the real service, given
+        with the string, it returned an unrelated article, so the string was ignored and no
+        work could ever read as missed (ADR-0015, Implementation).
 
         Args:
             work: A work from a gold set.
@@ -122,9 +124,9 @@ class IeeeSource:
         """
         if not work.doi:
             return None
-        params = {"doi": work.doi, "format": "json", "max_records": "1"}
-        if query is not None:
-            params["querytext"] = query
+        target = f'("DOI":{work.doi})'
+        term = target if query is None else f"({query}) AND {target}"
+        params = {"querytext": term, "format": "json", "max_records": "1"}
         reported, _ = _page(self._client.get(API, params, secret_params=self._key()))
         return reported > 0
 
