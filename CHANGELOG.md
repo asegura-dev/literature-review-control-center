@@ -5,6 +5,32 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.9.0] - Unreleased
+
+Records become works: exact duplicates are joined through the identifiers they share.
+
+### Added
+
+- **`lrcc dedupe REVIEW_ID`.** It joins every record not yet linked to its work, in log order
+  (ADR-0017).
+  - Records join through a shared DOI, PMID, arXiv identifier, or a database's own identifier
+    for the record. A record with none of the first three is joined only to records that also
+    have none, on its normalized title and year.
+  - Each join keeps the identifier that made it. The report gives, per run, the records that
+    first named a work and those already seen. For the runs under the current protocol, it
+    gives the records, the works and the duplicates removed.
+  - A record that carries identifiers of two different works stops the pass, and nothing is
+    written. So does a new work whose name is already taken.
+  - It refuses a review whose run log does not verify or whose records were edited.
+- **`work_id` and the work catalog** (ADR-0006): `library/catalog.duckdb`, shared by the
+  workspace's reviews. A work is named once, as `<author><year>-<hash6>`, and every identifier
+  met later becomes an alias.
+
+### Changed
+
+- **A review's database gains a `links` table**, one row per record with its work and the
+  reason it joined. It is created, empty, the next time any command opens the database.
+
 ## [0.8.0] - Unreleased
 
 Scopus and IEEE Xplore join PubMed and arXiv, through API keys that LRCC uses and never keeps,

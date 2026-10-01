@@ -11,10 +11,14 @@ exists; where something is still planned, it says so. The decisions behind it ar
 
 ## Status
 
-As of v0.8.0 every layer holds code. There are two ports: the source port, with PubMed, arXiv,
-Scopus and IEEE Xplore behind it, and the store port, with DuckDB behind it. Every request goes
-through one HTTP client. A search can also enter a review as a database's RIS export, imported
-as a run.
+As of v0.9.0 every layer holds code. There are three ports:
+
+- the source port, with PubMed, arXiv, Scopus and IEEE Xplore behind it;
+- the store port, with each review's DuckDB database behind it;
+- the catalog port, with the workspace's work catalog behind it.
+
+Every request goes through one HTTP client. A search can also enter a review as a database's
+RIS export, imported as a run. Records are joined into works by exact deduplication.
 
 ## The layout
 
@@ -31,21 +35,25 @@ src/lrcc/
 │   ├── record.py       Record, RawResponse and SearchResult: what a source said
 │   ├── runs.py         Run, and the hash chain of the run log
 │   ├── ris.py          the RIS reader: a database's export into records
+│   ├── works.py        Work, identifiers, work_id, and the exact linking of records
 │   ├── gold.py         GoldSet: works known to be relevant, and their identifiers
 │   └── secrets.py      API keys from the .env beside the configuration, never shown
 ├── ports/
 │   ├── source.py       the source port: a query and a limit in, a SearchResult out
-│   └── store.py        the store port: the run log, records and raw responses
+│   ├── store.py        the store port: the run log, records, raw responses and links
+│   └── catalog.py      the catalog port: every work of the workspace and its identifiers
 ├── adapters/
 │   ├── http.py         the one HTTP client: allowlist, rate limit, retries
 │   ├── sources/        pubmed.py, arxiv.py, ieee.py, scopus.py; safe_xml.py, safe_json.py
-│   └── storage/        duckdb_store.py: one database per review, responses as files
+│   └── storage/        duckdb_store.py: one database per review, responses as files;
+│                       duckdb_catalog.py: the workspace's work catalog
 ├── features/
 │   ├── configuration.py  read the configuration, open its workspace
 │   ├── init/             create a review from the synthetic protocol template
 │   ├── validate.py       check a protocol and report its digest
 │   ├── search.py         run the protocol's string on one source: a stored run, or a preview
 │   ├── imports.py        store a database's RIS export of the string as a run
+│   ├── dedupe.py         join records into works through shared identifiers
 │   ├── status.py         list a review's runs and verify its log
 │   ├── check_query.py    test a string against the gold set: retrieved, missed, not indexed
 │   ├── verify.py         check every stored response and record against the log
@@ -53,7 +61,7 @@ src/lrcc/
 └── views/
     └── cli/
         ├── app.py          the `lrcc` command (Typer and Rich)
-        └── composition.py  builds the HTTP client, a source and a store
+        └── composition.py  builds the HTTP client, a source, a store and the catalog
 ```
 
 The hexagon (`domain`, `ports`, `adapters`) is horizontal and shared: one `Record`, one hash
@@ -143,9 +151,11 @@ address is not plain HTTPS, and it never follows a redirect.
 ## What a run leaves behind
 
 ```
+library/
+└── catalog.duckdb                     every work of the workspace, and its identifiers
 reviews/<review_id>/
 ├── protocol.yaml
-├── review.duckdb                      the run log and the records
+├── review.duckdb                      the run log, the records, and each record's work
 └── runs/
     └── 0001-20260930T141500Z-pubmed/
         ├── response-0001.raw          each answer, byte for byte
@@ -177,8 +187,24 @@ a feature never imports another.
 A field added to the log entry after v0.7.0 is optional, and is left out while empty. The
 entries of earlier versions keep their canonical form, and their chain still verifies.
 
+## Records become works
+
+`lrcc dedupe` joins records into works through the identifiers they share: a DOI, a PMID, an
+arXiv identifier, or a database's own number (ADR-0017). The linking is a pure function in
+`domain/works.py`. It takes the records in log order and the identifiers already known, so the
+same records always give the same works.
+
+Identity is workspace-wide, because a work can belong to several reviews (ADR-0006):
+
+- `library/catalog.duckdb` holds every `work_id` and every identifier, one work per identifier;
+- each review's database holds only its links: which work each record joined, and why.
+
+The catalog is written first, so a pass interrupted between the two leaves only identifiers that
+the next pass finds again.
+
 ## Planned
 
-- **Identity (ADR-0006, from v0.9.0):** `work_id` and its catalog, with deduplication.
+- **Fuzzy deduplication (v0.9.0, second part):** title matches proposed to a person, with a
+  threshold measured on the review's records, and merges of two works.
 - **Integration (ADR-0005, from v0.14.0):** the review bundle, `--json` on every command, and
   the public Python API in `lrcc.api`.

@@ -13,12 +13,12 @@ stored response and a recorded decision. To get there, it:
 
 ## Status
 
-**v0.8.0: a review can be created and its protocol checked. Its search strings can be run on
+**v0.9.0: a review can be created and its protocol checked. Its search strings can be run on
 PubMed, arXiv, Scopus and IEEE Xplore as stored runs, or imported from a database's RIS
-export, and those runs verified and replayed offline. PubMed and arXiv have been run against
-the real services. Scopus has answered a real gold check, and IEEE Xplore a real preview and
-gold check. The import has been tested against synthetic data only.** LRCC has eight
-commands:
+export, and those runs verified and replayed offline. Their records can be joined into works
+through the identifiers they share. PubMed, arXiv and IEEE Xplore have stored real runs, and
+Scopus has answered a real gold check. The import and deduplication have been tested against
+synthetic data only.** LRCC has nine commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;
 - `lrcc validate` checks the protocol and prints the SHA-256 to register;
@@ -31,9 +31,11 @@ commands:
 - `lrcc verify` checks every stored response and record against the log;
 - `lrcc replay` rederives every run's records from its stored responses, without the network.
 - `lrcc check-query` tests the protocol's search string against a gold set of works known to be
-  relevant, telling a work the string misses from one the source does not hold.
+  relevant, telling a work the string misses from one the source does not hold;
+- `lrcc dedupe` joins the records into works through a shared DOI, PMID, arXiv identifier or
+  database number, names each work once, and reports the duplicates removed.
 
-Deduplication and screening come next.
+Fuzzy deduplication, confirmed by a person, and screening come next.
 The route to v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
 
 ## Try it
@@ -62,6 +64,7 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
    uv run lrcc status my-review
    uv run lrcc verify my-review
    uv run lrcc replay my-review
+   uv run lrcc dedupe my-review
    ```
 
    `init` writes `reviews/my-review/protocol.yaml`, a synthetic example: replace it with your
@@ -72,7 +75,8 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
    run from the RIS file a database exported when you ran the same string in its web interface,
    with the day of that search and the count it reported. `status` lists the runs, `verify`
    checks the stored files against the log, and `replay` rederives the records from those
-   files, offline. Every command takes `--json`.
+   files, offline. `dedupe` joins the records into works, and reports how many duplicates the
+   runs under the current protocol hold. Every command takes `--json`.
 
    If the checkout lives in a synchronised folder on Windows, run `.\run.ps1` in place of `uv`.
    The [development guide](docs/guides/development.md) explains why.

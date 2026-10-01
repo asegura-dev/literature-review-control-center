@@ -23,7 +23,7 @@ never deleted or rewritten.
 | [ADR-0003](ADR-0003-shared-hexagon-and-vertical-slices.md) | Shared hexagon, vertical slices, views that decide nothing, checked both ways | built in v0.0.1; amended by ADR-0010 |
 | [ADR-0004](ADR-0004-one-duckdb-database-per-review.md) | One DuckDB database per review, raw responses as files, no storage port | built in v0.5.0; amended by ADR-0012 |
 | [ADR-0005](ADR-0005-integration-by-contract.md) | Bundle, `--json` and `lrcc.api`; no listening port | accepted |
-| [ADR-0006](ADR-0006-workspace-library-and-work-id.md) | Workspace outside any repository, one folder per work, an immutable `work_id` and a work catalog | boundary built in v0.1.0 |
+| [ADR-0006](ADR-0006-workspace-library-and-work-id.md) | Workspace outside any repository, one folder per work, an immutable `work_id` and a work catalog | boundary built in v0.1.0; `work_id` and catalog in v0.9.0 |
 | [ADR-0007](ADR-0007-language-and-naming.md) | English for everything public; names; citing the version DOI | accepted |
 | [ADR-0008](ADR-0008-no-ai-co-authorship.md) | No AI co-authorship, enforced by hook and CI; disclosure in publications | built in v0.0.1 |
 | [ADR-0009](ADR-0009-license.md) | MIT for everything in the repository | built in v0.0.1 |
@@ -34,3 +34,4 @@ never deleted or rewritten.
 | [ADR-0014](ADR-0014-checking-a-search-string-against-a-gold-set.md) | A search string is checked against a gold set, with coverage kept apart from misses | built in v0.7.0 |
 | [ADR-0015](ADR-0015-api-keys-scopus-and-ieee-xplore.md) | API keys from a `.env` beside the configuration, never recorded; Scopus and IEEE Xplore | built in v0.8.0 |
 | [ADR-0016](ADR-0016-importing-a-database-export-as-a-run.md) | A database's RIS export is imported as a run; amends ADR-0012 | built in v0.8.0 |
+| [ADR-0017](ADR-0017-exact-deduplication-into-works.md) | Exact deduplication: records join works through shared identifiers | proposed; built in v0.9.0 |
