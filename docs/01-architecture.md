@@ -11,14 +11,15 @@ exists; where something is still planned, it says so. The decisions behind it ar
 
 ## Status
 
-As of v0.9.0 every layer holds code. There are three ports:
+As of v0.10.0 every layer holds code. There are three ports:
 
 - the source port, with PubMed, arXiv, Scopus and IEEE Xplore behind it;
 - the store port, with each review's DuckDB database behind it;
 - the catalog port, with the workspace's work catalog behind it.
 
 Every request goes through one HTTP client. A search can also enter a review as a database's
-RIS export, imported as a run. Records are joined into works by exact deduplication.
+RIS export, imported as a run. Records are joined into works, exactly or by a person's
+confirmation, and a person screens the works by title and abstract.
 
 ## The layout
 
@@ -38,6 +39,8 @@ src/lrcc/
 │   ├── works.py        Work, identifiers, work_id, and the exact linking of records
 │   ├── fuzzy.py        candidate pairs by title, a person's decisions, their chain, groups
 │   ├── pairs_csv.py    the candidate pairs as a CSV file, written and read back
+│   ├── review_works.py a review's works and groups, assembled once and checked first
+│   ├── screening.py    screening decisions, their order, the pilot and their chain
 │   ├── gold.py         GoldSet: works known to be relevant, and their identifiers
 │   └── secrets.py      API keys from the .env beside the configuration, never shown
 ├── ports/
@@ -56,6 +59,7 @@ src/lrcc/
 │   ├── search.py         run the protocol's string on one source: a stored run, or a preview
 │   ├── imports.py        store a database's RIS export of the string as a run
 │   ├── dedupe.py         join records into works; list candidate pairs; record decisions
+│   ├── screen.py         the screening session, one decision at a time, and its report
 │   ├── status.py         list a review's runs and verify its log
 │   ├── check_query.py    test a string against the gold set: retrieved, missed, not indexed
 │   ├── verify.py         check every stored response and record against the log
@@ -158,6 +162,7 @@ library/
 reviews/<review_id>/
 ├── protocol.yaml
 ├── review.duckdb                      the run log, the records, each record's work, decisions
+├── protocols/<sha256>.yaml            every protocol a screening decision was made under
 └── runs/
     └── 0001-20260930T141500Z-pubmed/
         ├── response-0001.raw          each answer, byte for byte
@@ -214,9 +219,28 @@ The three commands are one slice, `features/dedupe.py`, because they share the l
 review and its checks. Comparing every pair of titles is the one slow step, so only
 `candidates` does it.
 
+## Screening, the one interactive step
+
+`lrcc screen` presents the review's groups one at a time, and records each decision as it is
+made (ADR-0019). The view holds the loop of keys; the session object in `features/screen.py`
+validates and writes each decision. So the view still decides nothing.
+
+- **What is screened** is every group with a record from a counted run. For each source, the
+  counted run is the latest whose search string is the protocol's current one. An amendment of
+  the criteria therefore leaves the searches counted.
+- **The order** is the SHA-256 of the review id and each group's `work_id`. It is random-looking,
+  reproducible, and stored nowhere.
+- **Each decision records the protocol's digest**, and the first decision under a version keeps a
+  copy of that protocol beside the database.
+
+Deduplication and screening need the same picture of a review. A feature may not import
+another, so `domain/review_works.py` assembles that picture as pure functions over what the
+features read, and both refuse the same edited logs and records. The three hash-chained logs
+(runs, duplicate decisions, screening) are checked by one function, `link_problems`.
+
 ## Planned
 
-- **Screening (v0.10.0):** title and abstract decisions on each group, in the same kind of
-  hash-chained log.
+- **Full-text retrieval (v0.11.0):** the list of texts to obtain for the included and uncertain
+  works, with what is known of where to find each.
 - **Integration (ADR-0005, from v0.14.0):** the review bundle, `--json` on every command, and
   the public Python API in `lrcc.api`.

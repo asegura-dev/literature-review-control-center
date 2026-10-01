@@ -13,12 +13,13 @@ stored response and a recorded decision. To get there, it:
 
 ## Status
 
-**v0.9.0: a review can be created and its protocol checked. Its search strings can be run on
+**v0.10.0: a review can be created and its protocol checked. Its search strings can be run on
 PubMed, arXiv, Scopus and IEEE Xplore as stored runs, or imported from a database's RIS
-export, and those runs verified and replayed offline. Their records can be joined into works
-through the identifiers they share. PubMed, arXiv and IEEE Xplore have stored real runs, and
-Scopus has answered a real gold check. The import and deduplication have been tested against
-synthetic data only.** LRCC has eleven commands:
+export, and those runs verified and replayed offline. Their records are joined into works,
+through shared identifiers or a person's confirmation, and a person screens each work by title
+and abstract. PubMed, arXiv and IEEE Xplore have stored real runs, deduplicated into the first
+review's 851 works, and Scopus has answered a real gold check. The import and screening have
+been tested against synthetic data only.** LRCC has thirteen commands:
 
 - `lrcc init` creates a review in a workspace, with a protocol template to fill in;
 - `lrcc validate` checks the protocol and prints the SHA-256 to register;
@@ -37,9 +38,13 @@ synthetic data only.** LRCC has eleven commands:
 - `lrcc candidates` lists the pairs of works with similar titles that no identifier joined, and
   writes them to a CSV file for a person to judge;
 - `lrcc decide` records the person's `same` or `different` for each filled row, in a
-  hash-chained log.
+  hash-chained log;
+- `lrcc screen` presents each work's title and abstract, one at a time, for a person to include,
+  exclude with a protocol code, or mark uncertain, starting with a pilot;
+- `lrcc screen-report` counts the screening decisions, overall and in the pilot, by code and by
+  protocol version.
 
-Screening comes next.
+Full-text retrieval comes next.
 The route to v1.0 is in [chapter 2, the roadmap](docs/02-roadmap.md).
 
 ## Try it
@@ -71,6 +76,8 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
    uv run lrcc dedupe my-review
    uv run lrcc candidates my-review --csv pairs.csv
    uv run lrcc decide my-review pairs.csv
+   uv run lrcc screen my-review --pilot
+   uv run lrcc screen-report my-review
    ```
 
    `init` writes `reviews/my-review/protocol.yaml`, a synthetic example: replace it with your
@@ -84,8 +91,10 @@ LRCC needs [uv](https://docs.astral.sh/uv/).
    files, offline. `dedupe` joins the records into works, and reports how many duplicates the
    runs under the current protocol hold. `candidates --csv` writes the pairs of works with
    similar titles; fill its `decision` column with `same` or `different` in a spreadsheet, and
-   `decide` records each one under the `reviewer` named in the configuration. Every command
-   takes `--json`.
+   `decide` records each one under the `reviewer` named in the configuration. `screen --pilot`
+   opens the screening session on the pilot's works, one key per decision, and `screen` goes on
+   with the rest; `screen-report` shows where it stands. Every command takes `--json`, and
+   `screen` takes it with `--work`.
 
    If the checkout lives in a synchronised folder on Windows, run `.\run.ps1` in place of `uv`.
    The [development guide](docs/guides/development.md) explains why.
