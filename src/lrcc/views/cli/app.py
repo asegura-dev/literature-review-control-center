@@ -20,8 +20,9 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from lrcc.domain.errors import LrccError
+from lrcc.domain.errors import LrccError, ReviewError
 from lrcc.domain.fuzzy import CANDIDATE_MIN
+from lrcc.domain.screening import EXCLUDE, INCLUDE, UNCERTAIN
 from lrcc.features.check_query import CheckResult, GoldState, check_query
 from lrcc.features.configuration import (
     CONFIG_ENV,
@@ -41,6 +42,13 @@ from lrcc.features.dedupe import (
 from lrcc.features.imports import ImportOutcome, import_run
 from lrcc.features.init import InitResult, init_review
 from lrcc.features.replay import ReplayResult, replay_review
+from lrcc.features.screen import (
+    ScreenItem,
+    ScreenReport,
+    ScreenSession,
+    open_session,
+    screen_report,
+)
 from lrcc.features.search import RunOutcome, SearchOutcome, run_search, search_review
 from lrcc.features.status import StatusResult, review_status
 from lrcc.features.validate import ValidationResult, validate_review
@@ -323,13 +331,13 @@ def _show_dedupe(result: DedupeResult) -> None:
             Text(
                 f"  {run.run_id}  {run.records} records  {run.first_seen} first seen  "
                 f"{run.already_seen} already seen  "
-                f"protocol {'current' if run.current_protocol else 'changed since'}"
+                f"{'counted' if run.counted else 'not counted'}"
             )
         )
     console.print(
         Text(
-            f"Runs under the current protocol: {result.current_records} records,"
-            f" {result.current_groups} works after deduplication."
+            f"Counted runs, the latest of each source's current string: {result.counted_records}"
+            f" records, {result.counted_groups} works after deduplication."
             f" Duplicates removed: {result.by_identifiers} by identifiers,"
             f" {result.by_person} by a person.",
             style="green",
@@ -459,6 +467,173 @@ def _show_decide(result: DecideResult) -> None:
         )
     )
     console.print(Text(f"The review's works now form {result.groups} groups.", style="green"))
+
+
+class Verdict(StrEnum):
+    """The title and abstract decisions (ADR-0019)."""
+
+    include = "include"
+    exclude = "exclude"
+    uncertain = "uncertain"
+
+
+PilotOption = Annotated[
+    bool,
+    typer.Option(
+        "--pilot", help="Only the pilot: the first 50 works of the order and the frontier cases."
+    ),
+]
+WorkOption = Annotated[
+    str | None,
+    typer.Option(
+        "--work", help="Decide this work without the session, with --decision.", show_default=False
+    ),
+]
+VerdictOption = Annotated[
+    Verdict | None,
+    typer.Option("--decision", help="The decision on --work.", show_default=False),
+]
+CodeOption = Annotated[
+    str | None,
+    typer.Option("--code", help="The exclusion code, such as EXC3.", show_default=False),
+]
+NoteOption = Annotated[str, typer.Option("--note", help="A note kept with the decision.")]
+
+_KEYS = "[i]nclude  [e]xclude  [u]ncertain  [n]ote  [s]kip  [q]uit"
+
+
+@app.command()
+def screen(
+    review_id: ReviewIdArgument,
+    pilot: PilotOption = False,
+    work: WorkOption = None,
+    decision: VerdictOption = None,
+    code: CodeOption = None,
+    note: NoteOption = "",
+    config: ConfigOption = None,
+    as_json: JsonOption = False,
+) -> None:
+    """Screen the review's works by title and abstract, one at a time; or decide one with --work."""
+    try:
+        settings = load_configuration(config)
+        workspace = workspace_of(settings, os.environ)
+        session = open_session(
+            workspace,
+            review_id,
+            build_store(workspace, review_id),
+            build_catalog(workspace),
+            settings.reviewer,
+            pilot,
+        )
+        if work is not None:
+            if decision is None:
+                raise ReviewError("--work needs --decision: include, exclude or uncertain")
+            recorded = session.record(work, decision.value, code, note)
+            _present(
+                recorded.model_dump(mode="json"),
+                as_json,
+                lambda: console.print(
+                    Text(f"Recorded: {recorded.work_id} {recorded.decision} {recorded.code or ''}")
+                ),
+            )
+            return
+        if as_json:
+            raise ReviewError("--json needs --work: the session itself is interactive")
+    except LrccError as error:
+        _fail(error, as_json)
+    _screen_session(session)
+
+
+def _show_item(item: ScreenItem, number: int, total: int) -> None:
+    console.print()
+    console.print(
+        Text.assemble(
+            (f"[{number} of {total}]", "bold"),
+            f"  {item.group}  {item.year or '-'}  {' '.join(item.sources)}",
+        )
+    )
+    console.print(Text(item.title, style="bold"))
+    console.print(Text("; ".join(item.authors) or "(no authors)"))
+    if item.doi:
+        console.print(Text(f"DOI {item.doi}"))
+    console.print(Text(item.abstract or "(no abstract in any of its records)"))
+
+
+def _screen_session(session: ScreenSession) -> None:
+    console.print(
+        Text.assemble(
+            "Screening ",
+            (session.review_id, "bold"),
+            f" as {session.reviewer}{' (pilot)' if session.pilot else ''}:"
+            f" {len(session.items)} of {session.to_screen} work(s) to go.",
+        )
+    )
+    for label in session.missing_frontier:
+        console.print(Text(f"  frontier case the searches did not find: {label}", style="yellow"))
+    for code, text in session.exclusion.items():
+        console.print(Text(f"  {code}  {text}"))
+    made, note = 0, ""
+    for number, item in enumerate(session.items, start=1):
+        _show_item(item, number, len(session.items))
+        while True:
+            key = typer.prompt(_KEYS, default="", show_default=False).strip().lower()
+            if key == "q":
+                console.print(Text(f"Stopped. {made} decision(s) recorded.", style="green"))
+                return
+            if key == "s":
+                break
+            if key == "n":
+                note = typer.prompt("note", default="", show_default=False).strip()
+                continue
+            if key not in ("i", "e", "u"):
+                console.print(Text(f"Unknown key. {_KEYS}", style="yellow"))
+                continue
+            verdict = {"i": INCLUDE, "e": EXCLUDE, "u": UNCERTAIN}[key]
+            cited = str(typer.prompt("exclusion code")).strip().upper() if key == "e" else None
+            try:
+                session.record(item.group, verdict, cited, note)
+            except LrccError as error:
+                errors.print(Text(f"{error.message}; nothing was recorded", style="red"))
+                continue
+            made, note = made + 1, ""
+            break
+    console.print(Text(f"Done. {made} decision(s) recorded.", style="green"))
+
+
+@app.command("screen-report")
+def screen_report_command(
+    review_id: ReviewIdArgument, config: ConfigOption = None, as_json: JsonOption = False
+) -> None:
+    """Count the screening decisions, overall and in the pilot, by code and by protocol."""
+    try:
+        workspace = open_configured_workspace(config, os.environ)
+        report = screen_report(
+            workspace, review_id, build_store(workspace, review_id), build_catalog(workspace)
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(report.as_dict(), as_json, lambda: _show_screen_report(report))
+
+
+def _show_screen_report(report: ScreenReport) -> None:
+    console.print(Text.assemble("Screening of ", (report.review_id, "bold"), "."))
+    for label, tally in (("pilot", report.pilot), ("overall", report.overall)):
+        codes = ", ".join(f"{code} {count}" for code, count in tally.by_code.items())
+        console.print(
+            Text(
+                f"  {label:<8} {tally.groups} works: include {tally.include}, exclude"
+                f" {tally.exclude}{f' ({codes})' if codes else ''}, uncertain {tally.uncertain},"
+                f" pending {tally.pending}"
+            )
+        )
+    console.print(Text(f"  order    {report.order_rule}"))
+    for digest, count in report.versions.items():
+        mark = " (the protocol in force)" if digest == report.protocol_sha256 else ""
+        console.print(Text(f"  protocol {digest}  {count} decision(s){mark}"))
+    if report.reviewers:
+        console.print(Text(f"  reviewer {', '.join(report.reviewers)}"))
+    for label in report.missing_frontier:
+        console.print(Text(f"  frontier case the searches did not find: {label}", style="yellow"))
 
 
 @app.command("check-query")

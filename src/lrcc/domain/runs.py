@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
@@ -241,8 +242,45 @@ def entry_hash(prev_hash: str, entry: str) -> str:
     return sha256_hex(f"{prev_hash}\n{entry}".encode())
 
 
+@dataclass(frozen=True)
+class ChainLink:
+    """One entry of a hash-chained log, as checked: its name, what is stored, what it should be."""
+
+    name: str
+    entry: str
+    prev_hash: str
+    entry_hash: str
+    canonical: str
+
+
+def link_problems(links: Sequence[ChainLink]) -> list[str]:
+    """Recompute a hash chain, whatever the log, and return what does not hold.
+
+    The runs', the duplicate decisions' and the screening's logs are all checked here, so the
+    three can never disagree about what a broken chain is.
+
+    Args:
+        links: The log's entries, in order.
+
+    Returns:
+        One line per entry whose link to the entry before it, hash, or canonical form does not
+        match; nothing if the chain is intact.
+    """
+    problems = []
+    expected_prev = GENESIS
+    for link in links:
+        if link.prev_hash != expected_prev:
+            problems.append(f"{link.name}: does not follow the entry before it")
+        if entry_hash(link.prev_hash, link.entry) != link.entry_hash:
+            problems.append(f"{link.name}: its content does not match its hash")
+        if link.canonical != link.entry:
+            problems.append(f"{link.name}: its entry is not in canonical form")
+        expected_prev = link.entry_hash
+    return problems
+
+
 def chain_problems(log: Sequence[LoggedRun]) -> list[str]:
-    """Recompute the chain and return what does not hold, one line per problem.
+    """Recompute the run log's chain and return what does not hold, one line per problem.
 
     Args:
         log: The log's entries, in order.
@@ -251,15 +289,37 @@ def chain_problems(log: Sequence[LoggedRun]) -> list[str]:
         Nothing if the chain is intact. Otherwise each entry whose stored hash, link to the entry
         before it, or content does not match.
     """
-    problems = []
-    expected_prev = GENESIS
+    return link_problems(
+        [
+            ChainLink(
+                logged.run.run_id,
+                logged.entry,
+                logged.prev_hash,
+                logged.entry_hash,
+                logged.run.entry(),
+            )
+            for logged in log
+        ]
+    )
+
+
+def counted_runs(log: Sequence[LoggedRun], strings: Mapping[str, str]) -> set[str]:
+    """Return the runs a review counts: per source, the latest run of its current string.
+
+    An amendment of the protocol's criteria changes the protocol's digest but not its strings,
+    so it leaves the counted runs as they are (ADR-0019).
+
+    Args:
+        log: The run log, in order.
+        strings: The protocol's current search string for each of its sources.
+
+    Returns:
+        The ``run_id`` of the latest run of each source whose string is that source's current
+        one; a source with no such run counts none.
+    """
+    latest: dict[str, str] = {}
     for logged in log:
-        name = logged.run.run_id
-        if logged.prev_hash != expected_prev:
-            problems.append(f"{name}: does not follow the entry before it")
-        if entry_hash(logged.prev_hash, logged.entry) != logged.entry_hash:
-            problems.append(f"{name}: its content does not match its hash")
-        if logged.run.entry() != logged.entry:
-            problems.append(f"{name}: its entry is not in canonical form")
-        expected_prev = logged.entry_hash
-    return problems
+        run = logged.run
+        if run.source in strings and run.query_sha256 == sha256_hex(strings[run.source].encode()):
+            latest[run.source] = run.run_id
+    return set(latest.values())

@@ -19,7 +19,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, ConfigDict
 
 from lrcc.domain.record import Record
-from lrcc.domain.runs import GENESIS, canonical, entry_hash
+from lrcc.domain.runs import ChainLink, canonical, link_problems
 from lrcc.domain.works import Link, normalize_title
 
 #: The default threshold, measured on the first review's real records (v0.9.0 phase notes). It
@@ -101,12 +101,14 @@ def score(first: Sequence[str], second: Sequence[str], floor: float = 0.0) -> fl
         floor: Pairs that cannot reach it are not computed in full; they score 0.
 
     Returns:
-        The highest ``difflib.SequenceMatcher`` ratio over every pair of titles, or 0.
+        The highest ``difflib.SequenceMatcher`` ratio over every pair of titles, or 0. The
+        matcher's ``autojunk`` is off: from 200 characters on, it drops a text's most frequent
+        characters, and a long title nearly equal to another scored 0.2 instead of 0.97.
     """
     best = 0.0
     for one in first:
         for other in second:
-            matcher = SequenceMatcher(None, one, other)
+            matcher = SequenceMatcher(None, one, other, autojunk=False)
             bound = max(best, floor)
             if matcher.real_quick_ratio() < bound or matcher.quick_ratio() < bound:
                 continue
@@ -246,7 +248,9 @@ def candidate_pairs(
         # One matcher per title of the later work: SequenceMatcher caches what it learns about
         # its second sequence, so every earlier work is compared against it cheaply. The
         # orientation is the one ``pair_score`` uses, so a listed score is the recorded one.
-        matchers = [(SequenceMatcher(None, "", title), title) for title in other.titles]
+        matchers = [
+            (SequenceMatcher(None, "", title, autojunk=False), title) for title in other.titles
+        ]
         for one in works[:index]:
             key = pair_of(one.work_id, other.work_id)
             if group_of[one.work_id] == group_of[other.work_id] or key in decided:
@@ -298,15 +302,15 @@ def decision_chain_problems(log: Sequence[LoggedDecision]) -> list[str]:
     Returns:
         One line per entry whose link, hash or canonical form does not match.
     """
-    problems = []
-    expected_prev = GENESIS
-    for number, logged in enumerate(log, start=1):
-        name = f"decision {number} ({logged.decision.work_a} / {logged.decision.work_b})"
-        if logged.prev_hash != expected_prev:
-            problems.append(f"{name}: does not follow the entry before it")
-        if entry_hash(logged.prev_hash, logged.entry) != logged.entry_hash:
-            problems.append(f"{name}: its content does not match its hash")
-        if logged.decision.entry() != logged.entry:
-            problems.append(f"{name}: its entry is not in canonical form")
-        expected_prev = logged.entry_hash
-    return problems
+    return link_problems(
+        [
+            ChainLink(
+                f"decision {number} ({logged.decision.work_a} / {logged.decision.work_b})",
+                logged.entry,
+                logged.prev_hash,
+                logged.entry_hash,
+                logged.decision.entry(),
+            )
+            for number, logged in enumerate(log, start=1)
+        ]
+    )

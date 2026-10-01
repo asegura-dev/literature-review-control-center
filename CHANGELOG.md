@@ -5,6 +5,41 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.10.0] - Unreleased
+
+A person screens each work by its title and abstract, starting with a pilot, and every decision
+is kept in a hash-chained log with the protocol it was made under.
+
+### Added
+
+- **`lrcc screen REVIEW_ID [--pilot]`**, a terminal session over the works still to screen
+  (ADR-0019).
+  - Each work shows its title, authors, year, sources, DOI and longest abstract.
+  - One key decides: include, exclude (then an exclusion code of the protocol), uncertain. Other
+    keys add a note, skip or stop.
+  - Each decision is written as it is made.
+  - The order is the SHA-256 of the review id and the `work_id`: random-looking, reproducible,
+    stored nowhere.
+  - `--pilot` presents the first 50 works of that order and the frontier cases from
+    `frontier.yaml`, and marks its decisions as the pilot's.
+- **`lrcc screen REVIEW_ID --work WORK_ID --decision include|exclude|uncertain [--code]
+  [--note]`** records one decision without the session.
+- **`lrcc screen-report REVIEW_ID`.** It reports the pilot and the whole screening: included,
+  excluded by code, uncertain and pending. It also gives the decisions per protocol digest, the
+  reviewer, and any frontier case the searches did not find.
+- **The protocols decisions were made under are kept**, in `protocols/<sha256>.yaml` beside the
+  review's database, so an amendment after the pilot can always be read.
+
+### Changed
+
+- **The counted runs.** For each source, the review counts its latest run whose search string is
+  the protocol's current one. An amendment of the criteria no longer uncounts the searches.
+  `dedupe` reports over the counted runs, under the JSON key `counted_runs`, where it used
+  `current_protocol`.
+- **`verify` checks the screening log's chain**, and that every kept protocol matches its name.
+- **One chain check serves all three hash-chained logs**, and the picture of a review's works is
+  assembled once, for deduplication and screening alike.
+
 ## [0.9.0] - Unreleased
 
 Records become works. Exact duplicates are joined through the identifiers they share, and a

@@ -1,7 +1,9 @@
 """A review's storage in DuckDB, with its raw responses as files (ADR-0004, ADR-0012).
 
-Besides the run log and the records, the database links each record to its work (ADR-0017), and
-keeps a person's decisions on candidate pairs in a second hash-chained log (ADR-0018).
+Besides the run log and the records, the database links each record to its work (ADR-0017). It
+keeps a person's decisions in two more hash-chained logs: on candidate pairs (ADR-0018) and on
+title and abstract screening (ADR-0019). Every protocol a screening decision was made under is
+kept beside the database, as ``protocols/<sha256>.yaml``.
 
 The database is ``review.duckdb`` in the review's folder. Raw responses are written byte for byte
 under ``runs/<run_id>/`` before the log entry that names them, so the log never points at a file
@@ -21,7 +23,8 @@ from pydantic import ValidationError
 from lrcc.domain.errors import StoreError
 from lrcc.domain.fuzzy import LoggedDecision, PairDecision
 from lrcc.domain.record import Record, SearchResult
-from lrcc.domain.runs import GENESIS, LoggedRun, Run, entry_hash
+from lrcc.domain.runs import GENESIS, LoggedRun, Run, entry_hash, sha256_hex
+from lrcc.domain.screening import LoggedScreen, ScreenDecision
 from lrcc.domain.works import Link
 
 DATABASE = "review.duckdb"
@@ -68,7 +71,17 @@ _SCHEMA = (
         entry_hash VARCHAR NOT NULL
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS screening (
+        seq INTEGER PRIMARY KEY,
+        entry VARCHAR NOT NULL,
+        prev_hash VARCHAR NOT NULL,
+        entry_hash VARCHAR NOT NULL
+    )
+    """,
 )
+#: The protocols decisions were made under, one file per digest (ADR-0019).
+PROTOCOLS = "protocols"
 
 
 class DuckDbReviewStore:
@@ -367,3 +380,86 @@ class DuckDbReviewStore:
                 )
                 prev_hash = hashed
             connection.commit()
+
+    def screenings(self) -> tuple[LoggedScreen, ...]:
+        """Return every title and abstract decision, in order (ADR-0019).
+
+        Returns:
+            The log's entries. Empty if the review has no database yet.
+
+        Raises:
+            StoreError: If an entry is not a screening decision: the log was edited or damaged.
+        """
+        if not self._database.exists():
+            return ()
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT entry, prev_hash, entry_hash FROM screening ORDER BY seq"
+            ).fetchall()
+        try:
+            return tuple(
+                LoggedScreen(
+                    decision=ScreenDecision.model_validate_json(entry),
+                    entry=entry,
+                    prev_hash=prev_hash,
+                    entry_hash=hashed,
+                )
+                for entry, prev_hash, hashed in rows
+            )
+        except ValidationError as problem:
+            raise StoreError(
+                f"the screening log in {self._database} holds an entry that is not a decision",
+                [f"{problem.error_count()} field(s) do not fit; the log was edited or damaged"],
+            ) from None
+
+    def save_screening(self, decision: ScreenDecision) -> None:
+        """Append one screening decision to its hash-chained log.
+
+        Args:
+            decision: The decision, written as soon as the person makes it.
+
+        Raises:
+            StoreError: If the database cannot be written.
+        """
+        entry = decision.entry()
+        with self._connection() as connection:
+            connection.begin()
+            row = connection.execute(
+                "SELECT count(*), max_by(entry_hash, seq) FROM screening"
+            ).fetchone()
+            count, last = (row[0], row[1]) if row else (0, None)
+            prev_hash = last or GENESIS
+            connection.execute(
+                "INSERT INTO screening VALUES (?, ?, ?, ?)",
+                [count + 1, entry, prev_hash, entry_hash(prev_hash, entry)],
+            )
+            connection.commit()
+
+    def keep_protocol(self, data: bytes) -> str:
+        """Keep a copy of a protocol decisions are made under, named by its SHA-256.
+
+        Args:
+            data: The protocol file's exact bytes.
+
+        Returns:
+            The copy's file name. A copy already kept is left as it is.
+
+        Raises:
+            StoreError: If the copy cannot be written.
+        """
+        name = f"{sha256_hex(data)}.yaml"
+        path = self._review_dir / PROTOCOLS / name
+        try:
+            path.parent.mkdir(exist_ok=True)
+            if not path.exists():
+                path.write_bytes(data)
+        except OSError as problem:
+            raise StoreError(f"cannot keep the protocol {name}", [str(problem)]) from None
+        return name
+
+    def protocols(self) -> dict[str, bytes]:
+        """Return every protocol copy kept, by file name, to check each against its name."""
+        folder = self._review_dir / PROTOCOLS
+        if not folder.is_dir():
+            return {}
+        return {path.name: path.read_bytes() for path in sorted(folder.iterdir()) if path.is_file()}

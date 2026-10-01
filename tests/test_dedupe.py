@@ -118,18 +118,19 @@ def test_exact_duplicates_are_joined_with_their_reasons(
     assert data["linked_now"] == 6
     assert data["joined_by"] == {"doi": 1, "title": 1}
     assert (data["works"], data["unstable"]) == (4, 2)
-    assert data["current_protocol"] == {
-        "records": 6,
-        "works": 4,
-        "groups": 4,
+    # Two IEEE Xplore runs share a string, so only the later one counts (ADR-0019).
+    assert data["counted_runs"] == {
+        "records": 4,
+        "works": 2,
+        "groups": 2,
         "duplicates": 2,
         "by_identifiers": 2,
         "by_person": 0,
     }
-    assert [(run["first_seen"], run["already_seen"]) for run in data["runs"]] == [
-        (2, 0),
-        (2, 0),
-        (0, 2),
+    assert [(run["first_seen"], run["already_seen"], run["counted"]) for run in data["runs"]] == [
+        (2, 0, True),
+        (2, 0, False),
+        (0, 2, True),
     ]
 
     links = DuckDbReviewStore(review_dir).links()
@@ -149,26 +150,31 @@ def test_the_text_report_names_the_prisma_numbers(three_runs: str) -> None:
     assert result.exit_code == 0, result.stderr
     assert "joined a work already named, by: doi 1, title 1" in result.stdout
     assert (
-        "Runs under the current protocol: 6 records, 4 works after deduplication."
-        " Duplicates removed: 2 by identifiers, 0 by a person."
+        "Counted runs, the latest of each source's current string: 4 records, 2 works after"
+        " deduplication. Duplicates removed: 2 by identifiers, 0 by a person."
     ) in result.stdout
     assert "The review holds 4 works in 4 groups. 2 of the works are named from a" in result.stdout
 
 
-def test_the_prisma_numbers_count_only_runs_under_the_current_protocol(
+def test_the_prisma_numbers_count_the_latest_run_of_each_current_string(
     config: str, tmp_path: Path, review_dir: Path, fixture_bytes: Callable[[str], bytes]
 ) -> None:
-    """Runs made before the protocol changed still give works, but not the current counts."""
+    """Amending the criteria keeps a run counted; changing its string does not (ADR-0019)."""
     _import(config, tmp_path, "scopus.ris", fixture_bytes("scopus_export.ris"), "scopus")
     protocol = review_dir / "protocol.yaml"
-    protocol.write_bytes(protocol.read_bytes() + b"\n# fixed before the definitive runs\n")
+    protocol.write_bytes(protocol.read_bytes() + b"\n# an amendment of the criteria\n")
     _import(config, tmp_path, "again.ris", AGAIN, "ieee")
 
     data = json.loads(_dedupe(config).stdout)
-    assert [run["current_protocol"] for run in data["runs"]] == [False, True]
-    assert data["works"] == 2
-    current = data["current_protocol"]
-    assert (current["records"], current["works"], current["duplicates"]) == (2, 2, 0)
+    assert [run["counted"] for run in data["runs"]] == [True, True]
+    counted = data["counted_runs"]
+    assert (counted["records"], counted["works"], counted["duplicates"]) == (4, 2, 2)
+
+    text = protocol.read_text(encoding="utf-8").replace('"knowledge distillation"', "distill*")
+    protocol.write_text(text, encoding="utf-8")
+    data = json.loads(_dedupe(config).stdout)
+    assert [run["counted"] for run in data["runs"]] == [False, True]
+    assert data["counted_runs"]["records"] == 2
 
 
 def test_a_second_pass_links_only_what_is_new(

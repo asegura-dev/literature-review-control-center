@@ -34,5 +34,6 @@ never deleted or rewritten.
 | [ADR-0014](ADR-0014-checking-a-search-string-against-a-gold-set.md) | A search string is checked against a gold set, with coverage kept apart from misses | built in v0.7.0 |
 | [ADR-0015](ADR-0015-api-keys-scopus-and-ieee-xplore.md) | API keys from a `.env` beside the configuration, never recorded; Scopus and IEEE Xplore | built in v0.8.0 |
 | [ADR-0016](ADR-0016-importing-a-database-export-as-a-run.md) | A database's RIS export is imported as a run; amends ADR-0012 | built in v0.8.0 |
-| [ADR-0017](ADR-0017-exact-deduplication-into-works.md) | Exact deduplication: records join works through shared identifiers | proposed; built in v0.9.0 |
+| [ADR-0017](ADR-0017-exact-deduplication-into-works.md) | Exact deduplication: records join works through shared identifiers | proposed; built in v0.9.0; amended by ADR-0019 |
 | [ADR-0018](ADR-0018-fuzzy-duplicates-confirmed-by-a-person.md) | Fuzzy duplicates: candidate pairs by title, confirmed by a person in a CSV file; amends ADR-0010 | proposed; built in v0.9.0 |
+| [ADR-0019](ADR-0019-title-and-abstract-screening.md) | Title and abstract screening: a terminal session, a pilot, and a chained log; the counted runs | proposed; built in v0.10.0 |

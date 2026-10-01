@@ -200,3 +200,5 @@ their digests, because works built on edited records would prove nothing.
   - only unlinked records;
   - the current protocol's runs in the summary.
 - **Not yet run on the real review.** That is the maintainer's step.
+- **Amended by ADR-0019:** the report's "runs under the current protocol" became the counted
+  runs, so that an amendment of the criteria does not uncount the searches.

@@ -189,6 +189,10 @@ which only screening may be.
   work's, in the order the works first appear.
 - **On the first review's real records**, in a scratch workspace: 37 pairs at 0.80 or more. Of
   those, 33 score 1.0 and the other 4 lie between 0.81 and 0.95, as the measurement foresaw.
+- **`autojunk` is off.** From 200 characters on, `difflib` drops a text's most frequent
+  characters, and a long title nearly equal to another scored 0.2 instead of 0.973. Found while
+  comparing abstracts for the maintainer; a test holds it. On the review the listing did not
+  change.
 - **Each rule was broken on purpose, and a test failed each time.** The rules were:
   - the contradiction refusal;
   - decided pairs and grouped works left out;

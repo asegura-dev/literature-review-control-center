@@ -13,6 +13,7 @@ from typing import Protocol
 from lrcc.domain.fuzzy import LoggedDecision, PairDecision
 from lrcc.domain.record import Record, SearchResult
 from lrcc.domain.runs import LoggedRun, Run
+from lrcc.domain.screening import LoggedScreen, ScreenDecision
 from lrcc.domain.works import Link
 
 
@@ -92,4 +93,31 @@ class ReviewStore(Protocol):
         Args:
             decisions: The new decisions, in order.
         """
+        ...
+
+    def screenings(self) -> tuple[LoggedScreen, ...]:
+        """Return every title and abstract decision, in order (ADR-0019)."""
+        ...
+
+    def save_screening(self, decision: ScreenDecision) -> None:
+        """Append one screening decision to its hash-chained log.
+
+        Args:
+            decision: The decision.
+        """
+        ...
+
+    def keep_protocol(self, data: bytes) -> str:
+        """Keep a copy of a protocol decisions are made under, named by its SHA-256.
+
+        Args:
+            data: The protocol file's exact bytes.
+
+        Returns:
+            The copy's file name.
+        """
+        ...
+
+    def protocols(self) -> dict[str, bytes]:
+        """Return every protocol copy kept, by file name."""
         ...

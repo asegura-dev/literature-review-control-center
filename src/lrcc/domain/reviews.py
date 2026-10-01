@@ -10,6 +10,9 @@ from lrcc.domain.gold import GOLD_FILE, GoldSet, parse_gold_set
 from lrcc.domain.protocol import Protocol, parse_protocol, protocol_digest
 from lrcc.domain.workspace import Workspace
 
+#: The frontier cases of a review, beside its gold set (ADR-0019).
+FRONTIER_FILE = "frontier.yaml"
+
 
 @dataclass(frozen=True)
 class LoadedProtocol:
@@ -71,3 +74,25 @@ def load_gold_set(workspace: Workspace, review_id: str) -> tuple[GoldSet, Path]:
             ["list the works known to be relevant there, with their DOI, PMID or arXiv id"],
         )
     return parse_gold_set(path.read_bytes(), source=str(path)), path
+
+
+def load_frontier(workspace: Workspace, review_id: str) -> GoldSet | None:
+    """Read the frontier cases of ``review_id``, in the gold set's format (ADR-0019).
+
+    Frontier cases are works whose eligibility is hard to call, screened in the pilot to
+    calibrate the criteria. A review need not have any.
+
+    Args:
+        workspace: The accepted workspace.
+        review_id: The review whose frontier cases to read.
+
+    Returns:
+        The cases from ``reviews/<review_id>/frontier.yaml``, or None if the file does not exist.
+
+    Raises:
+        ReviewError: If the id is invalid or the file is not a valid list of works.
+    """
+    path = workspace.review_dir(review_id) / FRONTIER_FILE
+    if not path.is_file():
+        return None
+    return parse_gold_set(path.read_bytes(), source=str(path))
