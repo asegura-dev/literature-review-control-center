@@ -7,10 +7,13 @@ abstraction over engines: tests use the real implementation in a temporary folde
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Protocol
 
+from lrcc.domain.fuzzy import LoggedDecision, PairDecision
 from lrcc.domain.record import Record, SearchResult
 from lrcc.domain.runs import LoggedRun, Run
+from lrcc.domain.works import Link
 
 
 class ReviewStore(Protocol):
@@ -64,5 +67,29 @@ class ReviewStore(Protocol):
 
         Returns:
             The records, as stored.
+        """
+        ...
+
+    def links(self) -> tuple[Link, ...]:
+        """Return every record's link to its work, in log order (ADR-0017)."""
+        ...
+
+    def save_links(self, links: Sequence[Link]) -> None:
+        """Append links, in one transaction; a record already linked is refused.
+
+        Args:
+            links: The new links.
+        """
+        ...
+
+    def decisions(self) -> tuple[LoggedDecision, ...]:
+        """Return every decision on a pair of works, in order (ADR-0018)."""
+        ...
+
+    def save_decisions(self, decisions: Sequence[PairDecision]) -> None:
+        """Append decisions to their hash-chained log, in one transaction.
+
+        Args:
+            decisions: The new decisions, in order.
         """
         ...

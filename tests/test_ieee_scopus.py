@@ -114,8 +114,12 @@ def test_ieee_quota_refusal_is_not_retried(respx_mock: respx.MockRouter) -> None
     assert respx_mock.calls.call_count == 1
 
 
-def test_ieee_gold_checks_by_doi(respx_mock: respx.MockRouter) -> None:
-    """Held is asked by DOI alone; retrieved by the DOI with the string."""
+def test_ieee_gold_checks_put_the_doi_inside_the_query(respx_mock: respx.MockRouter) -> None:
+    """Held is asked with the DOI field alone; retrieved with the string AND the DOI field.
+
+    The ``doi`` parameter is never sent: the real API, given it with the string, ignored the
+    string and returned an unrelated article (ADR-0015, Implementation).
+    """
     route = respx_mock.get(IEEE_API).mock(
         side_effect=[_ok(b'{"total_records": 1}'), _ok(b'{"total_records": 0}')]
     )
@@ -124,8 +128,8 @@ def test_ieee_gold_checks_by_doi(respx_mock: respx.MockRouter) -> None:
     assert source.holds(work, None) is True
     assert source.holds(work, "a AND b") is False
     first, second = (_params(call) for call in route.calls)
-    assert first["doi"] == ["10.0000/x"] and "querytext" not in first
-    assert second["doi"] == ["10.0000/x"] and second["querytext"] == ["a AND b"]
+    assert first["querytext"] == ['("DOI":10.0000/x)'] and "doi" not in first
+    assert second["querytext"] == ['(a AND b) AND ("DOI":10.0000/x)'] and "doi" not in second
     assert source.holds(GoldWork(label="v", arxiv="9912.00001"), None) is None
 
 

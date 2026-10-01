@@ -11,10 +11,11 @@ from lrcc.adapters.sources.arxiv import ArxivSource
 from lrcc.adapters.sources.ieee import IeeeSource
 from lrcc.adapters.sources.pubmed import PubMedSource
 from lrcc.adapters.sources.scopus import ScopusSource
+from lrcc.adapters.storage.duckdb_catalog import CATALOG, DuckDbWorkCatalog
 from lrcc.adapters.storage.duckdb_store import DuckDbReviewStore
 from lrcc.domain.config import Config
 from lrcc.domain.secrets import Secrets
-from lrcc.domain.workspace import Workspace
+from lrcc.domain.workspace import LIBRARY, Workspace
 
 AnySource = ArxivSource | IeeeSource | PubMedSource | ScopusSource
 
@@ -72,3 +73,18 @@ def build_store(workspace: Workspace, review_id: str) -> DuckDbReviewStore:
         WorkspaceError: If the review's folder would leave the workspace.
     """
     return DuckDbReviewStore(workspace.review_dir(review_id))
+
+
+def build_catalog(workspace: Workspace) -> DuckDbWorkCatalog:
+    """Build the workspace's work catalog, ``library/catalog.duckdb`` (ADR-0006).
+
+    Args:
+        workspace: The accepted workspace.
+
+    Returns:
+        The catalog. Nothing is opened until it is used.
+
+    Raises:
+        WorkspaceError: If the library folder would leave the workspace.
+    """
+    return DuckDbWorkCatalog(workspace.resolve_within(LIBRARY) / CATALOG)

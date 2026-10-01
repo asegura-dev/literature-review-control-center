@@ -159,8 +159,9 @@ Importing manual exports (RIS), and notification of long runs, stay in v0.8.0 fo
 - **Every paging source keeps the count its first page reported.** In a test, Scopus's last page
   reported zero. arXiv and IEEE Xplore now read the count the same way.
 - **The first real requests**, on 2026-09-30:
-  - IEEE Xplore answered `Developer Inactive`, while the key's status on IEEE's portal was
-    "waiting";
+  - IEEE Xplore answered `Developer Inactive` while the key's status on IEEE's portal was
+    "waiting". Once the status was "active", the same day, it accepted the key and the full
+    draft string, and reported 500 records for it;
   - Scopus first answered `APIKEY_INVALID`, then accepted the key;
   - from outside the institution's network, Scopus answered the gold check in the STANDARD view
     and refused the COMPLETE view;
@@ -168,4 +169,11 @@ Importing manual exports (RIS), and notification of long runs, stay in v0.8.0 fo
 - **The two points left open under Consequences:**
   - Scopus refuses the COMPLETE view outside the institution's network; ADR-0016 covers that
     case with the web interface's export;
-  - IEEE Xplore combining `querytext` with `doi` has not been seen yet.
+  - **IEEE Xplore does not combine `querytext` with its `doi` parameter.**
+    - A control gave the gold check an unrelated IEEE article. Sent with the string and the
+      `doi` parameter, the API returned it, so the string was ignored, and the check could
+      never have reported a miss.
+    - The DOI is now searched as a field inside `querytext`, `("DOI":...)`, and joined to the
+      string by `AND`. Asked that way, the unrelated article read as missed, the command exited
+      with code 1, and a gold work still read as retrieved.
+    - A DOI that holds parentheses or quotes has not been tried in that field.

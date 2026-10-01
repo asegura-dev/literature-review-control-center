@@ -1,5 +1,8 @@
 """A review's storage in DuckDB, with its raw responses as files (ADR-0004, ADR-0012).
 
+Besides the run log and the records, the database links each record to its work (ADR-0017), and
+keeps a person's decisions on candidate pairs in a second hash-chained log (ADR-0018).
+
 The database is ``review.duckdb`` in the review's folder. Raw responses are written byte for byte
 under ``runs/<run_id>/`` before the log entry that names them, so the log never points at a file
 that is not there. Every statement is parameterized. A connection is opened for one operation and
@@ -8,7 +11,7 @@ closed, because DuckDB allows one writing process at a time.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -16,8 +19,10 @@ import duckdb
 from pydantic import ValidationError
 
 from lrcc.domain.errors import StoreError
+from lrcc.domain.fuzzy import LoggedDecision, PairDecision
 from lrcc.domain.record import Record, SearchResult
 from lrcc.domain.runs import GENESIS, LoggedRun, Run, entry_hash
+from lrcc.domain.works import Link
 
 DATABASE = "review.duckdb"
 RUNS = "runs"
@@ -44,6 +49,23 @@ _SCHEMA = (
         doi VARCHAR,
         abstract VARCHAR,
         PRIMARY KEY (run_id, position)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS links (
+        run_id VARCHAR NOT NULL,
+        position INTEGER NOT NULL,
+        work_id VARCHAR NOT NULL,
+        matched_by VARCHAR NOT NULL,
+        PRIMARY KEY (run_id, position)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS decisions (
+        seq INTEGER PRIMARY KEY,
+        entry VARCHAR NOT NULL,
+        prev_hash VARCHAR NOT NULL,
+        entry_hash VARCHAR NOT NULL
     )
     """,
 )
@@ -241,3 +263,107 @@ class DuckDbReviewStore:
             )
             for source, source_id, title, authors, year, doi, abstract in rows
         )
+
+    def links(self) -> tuple[Link, ...]:
+        """Return every record's link to its work, in log order (ADR-0017).
+
+        Returns:
+            The links. Empty if the review has no database yet.
+        """
+        if not self._database.exists():
+            return ()
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT l.run_id, l.position, l.work_id, l.matched_by FROM links l"
+                " JOIN runs r ON r.run_id = l.run_id ORDER BY r.seq, l.position"
+            ).fetchall()
+        return tuple(
+            Link(run_id=run_id, position=position, work_id=work_id, matched_by=matched_by)
+            for run_id, position, work_id, matched_by in rows
+        )
+
+    def save_links(self, links: Sequence[Link]) -> None:
+        """Append links, in one transaction. A record already linked is refused.
+
+        Args:
+            links: The new links.
+
+        Raises:
+            StoreError: If the database cannot be written, or a record is already linked.
+                Nothing is written in that case.
+        """
+        if not links:
+            return
+        with self._connection() as connection:
+            connection.begin()
+            try:
+                for link in links:
+                    connection.execute(
+                        "INSERT INTO links VALUES (?, ?, ?, ?)",
+                        [link.run_id, link.position, link.work_id, link.matched_by],
+                    )
+            except duckdb.ConstraintException as problem:
+                connection.rollback()
+                raise StoreError(
+                    f"{self._database} already links one of these records", [str(problem)]
+                ) from None
+            connection.commit()
+
+    def decisions(self) -> tuple[LoggedDecision, ...]:
+        """Return every decision on a pair of works, in order (ADR-0018).
+
+        Returns:
+            The log's entries. Empty if the review has no database yet.
+
+        Raises:
+            StoreError: If an entry is not a decision: the log was edited or damaged.
+        """
+        if not self._database.exists():
+            return ()
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT entry, prev_hash, entry_hash FROM decisions ORDER BY seq"
+            ).fetchall()
+        try:
+            return tuple(
+                LoggedDecision(
+                    decision=PairDecision.model_validate_json(entry),
+                    entry=entry,
+                    prev_hash=prev_hash,
+                    entry_hash=hashed,
+                )
+                for entry, prev_hash, hashed in rows
+            )
+        except ValidationError as problem:
+            raise StoreError(
+                f"the decisions log in {self._database} holds an entry that is not a decision",
+                [f"{problem.error_count()} field(s) do not fit; the log was edited or damaged"],
+            ) from None
+
+    def save_decisions(self, decisions: Sequence[PairDecision]) -> None:
+        """Append decisions to their hash-chained log, in one transaction.
+
+        Args:
+            decisions: The new decisions, in order.
+
+        Raises:
+            StoreError: If the database cannot be written. Nothing is written in that case.
+        """
+        if not decisions:
+            return
+        with self._connection() as connection:
+            connection.begin()
+            row = connection.execute(
+                "SELECT count(*), max_by(entry_hash, seq) FROM decisions"
+            ).fetchone()
+            count, last = (row[0], row[1]) if row else (0, None)
+            prev_hash = last or GENESIS
+            for offset, decision in enumerate(decisions, start=1):
+                entry = decision.entry()
+                hashed = entry_hash(prev_hash, entry)
+                connection.execute(
+                    "INSERT INTO decisions VALUES (?, ?, ?, ?)",
+                    [count + offset, entry, prev_hash, hashed],
+                )
+                prev_hash = hashed
+            connection.commit()

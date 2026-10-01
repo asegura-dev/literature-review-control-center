@@ -5,6 +5,51 @@ All notable changes to LRCC are recorded here, newest first. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Before 1.0.0, a minor version may
 break anything; every break is named here.
 
+## [0.9.0] - Unreleased
+
+Records become works. Exact duplicates are joined through the identifiers they share, and a
+person confirms the rest, which are proposed by title.
+
+### Added
+
+- **`lrcc dedupe REVIEW_ID`.** It joins every record not yet linked to its work, in log order
+  (ADR-0017).
+  - Records join through a shared DOI, PMID, arXiv identifier, or a database's own identifier
+    for the record. A record with none of the first three is joined only to records that also
+    have none, on its normalized title and year.
+  - Each join keeps the identifier that made it. The report gives, per run, the records that
+    first named a work and those already seen. For the runs under the current protocol, it
+    gives the records, the works and the duplicates removed.
+  - A record that carries identifiers of two different works stops the pass, and nothing is
+    written. So does a new work whose name is already taken.
+  - It refuses a review whose run log does not verify or whose records were edited.
+- **`work_id` and the work catalog** (ADR-0006): `library/catalog.duckdb`, shared by the
+  workspace's reviews. A work is named once, as `<author><year>-<hash6>`, and every identifier
+  met later becomes an alias.
+- **`lrcc candidates REVIEW_ID [--min 0.80] [--csv FILE]`.** It lists the pairs of works whose
+  titles score 0.80 or more and that no identifier joined, for a person to judge (ADR-0018).
+  The default comes from the first review's real records. With `--csv` it writes the pairs to a
+  new file, never over an existing one, escaping cells that begin like a formula.
+- **`lrcc decide REVIEW_ID FILE`.** It reads that file back once a person has filled the
+  `decision` column with `same` or `different`, and appends each decision to a hash-chained log.
+  The log records the reviewer, the time, the score and the note.
+  - Works joined by `same` form a group, named by the published version over the preprint.
+  - A later decision on a pair is a new entry that replaces the earlier one.
+  - Empty rows wait for later.
+  - An unknown decision or work, a pair given twice with two decisions, or a contradiction
+    refuses the whole file.
+- **`reviewer` in the configuration**, the person decisions are attributed to. `decide` refuses
+  to run without it.
+
+### Changed
+
+- **A review's database gains a `links` table**, one row per record with its work and the reason
+  it joined, and a `decisions` table, the person's log. Both are created, empty, the next time
+  any command opens the database.
+- **`dedupe` counts groups.** For the current protocol's runs it reports the works after
+  deduplication, and the duplicates removed by identifiers and by a person.
+- **`verify` checks the decisions' chain** as it checks the runs'.
+
 ## [0.8.0] - Unreleased
 
 Scopus and IEEE Xplore join PubMed and arXiv, through API keys that LRCC uses and never keeps,
@@ -25,7 +70,9 @@ or through the RIS files their web interfaces export.
 - **Two sources, Scopus and IEEE Xplore.** `search` (stored or `--preview`), `check-query` and
   `replay` work with all four sources (ADR-0015).
   - IEEE Xplore uses the Metadata Search API, 200 records per call. It does not retry a refusal,
-    because the free key allows 200 calls a day.
+    because the free key allows 200 calls a day. Its gold check searches the DOI as a field of
+    the query, `("DOI":...)`, joined to the string by `AND`. The API's `doi` parameter ignores
+    the string, as a real control showed.
   - Scopus uses the Scopus Search API in the COMPLETE view, for abstracts, with cursor paging.
     The key and the institutional token go in headers.
 - **API keys from a `.env` beside the configuration file**, and from nowhere else. The real

@@ -1,5 +1,5 @@
 ---
-status: accepted (built in v0.1.0)
+status: accepted (built in v0.1.0; amended by ADR-0018, proposed)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---

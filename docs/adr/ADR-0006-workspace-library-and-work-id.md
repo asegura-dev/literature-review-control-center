@@ -1,5 +1,5 @@
 ---
-status: accepted (workspace boundary built in v0.1.0)
+status: accepted (workspace boundary built in v0.1.0; work_id and catalog built in v0.9.0)
 date: 2026-09-29
 decision-makers: Alejandro Segura
 ---
@@ -218,3 +218,14 @@ an incoming record is a work already in the library therefore needs one workspac
 - `work_id` and the work catalog were planned for v0.3.0. ADR-0011 moved them to v0.9.0,
   because works first exist when records are deduplicated. Where this record says "from
   v0.3.0" about `work_id` or the catalog, read v0.9.0.
+- **v0.9.0 built `work_id` and the catalog**, with exact deduplication (ADR-0017):
+  - the name, in `src/lrcc/domain/works.py`, tested on this record's list: a DOI, a PMID, an
+    arXiv ID with a version suffix, no identifier, no author, a non-ASCII author, no year, and
+    a forced collision;
+  - the catalog, `library/catalog.duckdb`, in `src/lrcc/adapters/storage/duckdb_catalog.py`. A
+    test inserts one identifier for two works and the database refuses it;
+  - ADR-0017 adds the databases' own identifiers (`ieee:`, `scopus:`) to the typed
+    identifiers;
+  - the family name is folded as this record says, so `Ødegaard` becomes `degaard`: NFKD does
+    not decompose `Ø`, and it is dropped;
+  - rebuilding the catalog by replay is not built yet.
