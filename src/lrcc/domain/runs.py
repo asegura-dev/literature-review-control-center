@@ -39,7 +39,17 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _canonical(value: object) -> str:
+def canonical(value: object) -> str:
+    """Return ``value`` as canonical JSON: sorted keys, no spare whitespace, ASCII only.
+
+    Every hash-chained log stores and hashes its entries in this one form (ADR-0012, ADR-0018).
+
+    Args:
+        value: JSON-ready data.
+
+    Returns:
+        The canonical text.
+    """
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
@@ -103,7 +113,7 @@ class Run(BaseModel):
         A field added after v0.7.0 is optional, and left out while empty. An entry written
         before the field existed keeps its canonical form, and so its hash (ADR-0016).
         """
-        return _canonical(self.model_dump(mode="json", exclude_none=True))
+        return canonical(self.model_dump(mode="json", exclude_none=True))
 
 
 class LoggedRun(BaseModel):
@@ -165,7 +175,7 @@ def records_digest(records: Sequence[Record]) -> str:
         The SHA-256 of their canonical JSON. A replay that derives the same records gets the same
         digest.
     """
-    return sha256_hex(_canonical([record.model_dump(mode="json") for record in records]).encode())
+    return sha256_hex(canonical([record.model_dump(mode="json") for record in records]).encode())
 
 
 def build_run(

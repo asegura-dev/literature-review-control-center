@@ -3,6 +3,7 @@
 It names the workspace (ADR-0010) and, when searching is wanted, the network settings: whether
 requests are allowed at all, and the only hosts that may be contacted, each with the pause to
 leave between two requests to it (ADR-0011). The network is off unless the file turns it on.
+It may also name the reviewer, the person every recorded decision is attributed to (ADR-0018).
 """
 
 from __future__ import annotations
@@ -61,6 +62,9 @@ class Config(_Frozen):
 
     workspace: Annotated[Text, AfterValidator(_absolute)]
     network: NetworkConfig = Field(default_factory=NetworkConfig)
+    #: The person who records decisions. Optional here; a command that records one refuses to
+    #: run without it, rather than attribute a decision to nobody.
+    reviewer: Text | None = None
 
     @property
     def workspace_path(self) -> Path:

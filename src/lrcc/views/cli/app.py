@@ -21,14 +21,23 @@ from rich.table import Table
 from rich.text import Text
 
 from lrcc.domain.errors import LrccError
+from lrcc.domain.fuzzy import CANDIDATE_MIN
 from lrcc.features.check_query import CheckResult, GoldState, check_query
 from lrcc.features.configuration import (
     CONFIG_ENV,
+    load_configuration,
     load_settings,
     open_configured_workspace,
     workspace_of,
 )
-from lrcc.features.dedupe import DedupeResult, dedupe_review
+from lrcc.features.dedupe import (
+    CandidatesResult,
+    DecideResult,
+    DedupeResult,
+    decide_pairs,
+    dedupe_review,
+    list_candidates,
+)
 from lrcc.features.imports import ImportOutcome, import_run
 from lrcc.features.init import InitResult, init_review
 from lrcc.features.replay import ReplayResult, replay_review
@@ -286,7 +295,7 @@ def _show_replay(result: ReplayResult) -> None:
 def dedupe(
     review_id: ReviewIdArgument, config: ConfigOption = None, as_json: JsonOption = False
 ) -> None:
-    """Join the review's records into works through shared identifiers: exact duplicates."""
+    """Join the review's records into works through shared identifiers, and report the groups."""
     try:
         workspace = open_configured_workspace(config, os.environ)
         result = dedupe_review(
@@ -320,16 +329,136 @@ def _show_dedupe(result: DedupeResult) -> None:
     console.print(
         Text(
             f"Runs under the current protocol: {result.current_records} records,"
-            f" {result.current_works} works, {result.current_duplicates} duplicates removed.",
+            f" {result.current_groups} works after deduplication."
+            f" Duplicates removed: {result.by_identifiers} by identifiers,"
+            f" {result.by_person} by a person.",
             style="green",
         )
     )
     console.print(
         Text(
-            f"The review holds {result.works} works. {result.unstable} of them are named from a"
-            " title or a database's own number, not from a DOI, PMID or arXiv id."
+            f"The review holds {result.works} works in {result.groups} groups. {result.unstable}"
+            " of the works are named from a title or a database's own number, not from a DOI,"
+            " PMID or arXiv id."
         )
     )
+    console.print(
+        Text(
+            f"{result.decisions} decision(s) on pairs recorded so far. Works with similar titles"
+            f" that no identifier joins are listed by: lrcc candidates {result.review_id}"
+            " --csv pairs.csv"
+        )
+    )
+
+
+MinimumOption = Annotated[
+    float,
+    typer.Option(
+        "--min",
+        min=0.5,
+        max=1.0,
+        help="The lowest title similarity proposed, measured on the first review (ADR-0018).",
+    ),
+]
+CsvOption = Annotated[
+    Path | None,
+    typer.Option("--csv", help="Also write the pairs to this new CSV file.", show_default=False),
+]
+DecisionsArgument = Annotated[
+    Path,
+    typer.Argument(help="The pairs file, with the decision column filled.", show_default=False),
+]
+
+
+@app.command()
+def candidates(
+    review_id: ReviewIdArgument,
+    minimum: MinimumOption = CANDIDATE_MIN,
+    csv: CsvOption = None,
+    config: ConfigOption = None,
+    as_json: JsonOption = False,
+) -> None:
+    """List the pairs of works with similar titles that a person should judge."""
+    try:
+        workspace = open_configured_workspace(config, os.environ)
+        result = list_candidates(
+            workspace,
+            review_id,
+            build_store(workspace, review_id),
+            build_catalog(workspace),
+            minimum,
+            csv,
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(result.as_dict(), as_json, lambda: _show_candidates(result))
+
+
+def _show_candidates(result: CandidatesResult) -> None:
+    console.print(
+        Text.assemble(
+            "Review ",
+            (result.review_id, "bold"),
+            f": {len(result.pairs)} pair(s) of works with titles scoring {result.minimum:.2f}"
+            " or more, not yet decided.",
+        )
+    )
+    for pair in result.pairs:
+        console.print(Text(f"  {pair.score:.3f}  {pair.work_a}  {pair.work_b}"))
+        for work_id in (pair.work_a, pair.work_b):
+            facts = result.facts[work_id]
+            console.print(
+                Text(f"         {' '.join(facts.sources)} {facts.year or '-'}  {facts.title}")
+            )
+    if result.written:
+        console.print(
+            Text(
+                f"Written to {result.written}. Fill the decision column with same or different,"
+                f" then run: lrcc decide {result.review_id} FILE",
+                style="green",
+            )
+        )
+
+
+@app.command()
+def decide(
+    review_id: ReviewIdArgument,
+    file: DecisionsArgument,
+    config: ConfigOption = None,
+    as_json: JsonOption = False,
+) -> None:
+    """Record the same or different decisions written in a candidate-pairs file."""
+    try:
+        settings = load_configuration(config)
+        workspace = workspace_of(settings, os.environ)
+        result = decide_pairs(
+            workspace,
+            review_id,
+            build_store(workspace, review_id),
+            build_catalog(workspace),
+            file,
+            settings.reviewer,
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(result.as_dict(), as_json, lambda: _show_decide(result))
+
+
+def _show_decide(result: DecideResult) -> None:
+    console.print(
+        Text.assemble(
+            "Review ",
+            (result.review_id, "bold"),
+            f": {result.same + result.different} decision(s) recorded for {result.reviewer}.",
+        )
+    )
+    console.print(
+        Text(
+            f"  same {result.same}  different {result.different}  already recorded"
+            f" {result.unchanged}  left for later {result.pending}"
+        )
+    )
+    console.print(Text(f"The review's works now form {result.groups} groups.", style="green"))
 
 
 @app.command("check-query")

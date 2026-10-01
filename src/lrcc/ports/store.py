@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol
 
+from lrcc.domain.fuzzy import LoggedDecision, PairDecision
 from lrcc.domain.record import Record, SearchResult
 from lrcc.domain.runs import LoggedRun, Run
 from lrcc.domain.works import Link
@@ -78,5 +79,17 @@ class ReviewStore(Protocol):
 
         Args:
             links: The new links.
+        """
+        ...
+
+    def decisions(self) -> tuple[LoggedDecision, ...]:
+        """Return every decision on a pair of works, in order (ADR-0018)."""
+        ...
+
+    def save_decisions(self, decisions: Sequence[PairDecision]) -> None:
+        """Append decisions to their hash-chained log, in one transaction.
+
+        Args:
+            decisions: The new decisions, in order.
         """
         ...
