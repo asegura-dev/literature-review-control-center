@@ -101,12 +101,14 @@ def score(first: Sequence[str], second: Sequence[str], floor: float = 0.0) -> fl
         floor: Pairs that cannot reach it are not computed in full; they score 0.
 
     Returns:
-        The highest ``difflib.SequenceMatcher`` ratio over every pair of titles, or 0.
+        The highest ``difflib.SequenceMatcher`` ratio over every pair of titles, or 0. The
+        matcher's ``autojunk`` is off: from 200 characters on, it drops a text's most frequent
+        characters, and a long title nearly equal to another scored 0.2 instead of 0.97.
     """
     best = 0.0
     for one in first:
         for other in second:
-            matcher = SequenceMatcher(None, one, other)
+            matcher = SequenceMatcher(None, one, other, autojunk=False)
             bound = max(best, floor)
             if matcher.real_quick_ratio() < bound or matcher.quick_ratio() < bound:
                 continue
@@ -246,7 +248,9 @@ def candidate_pairs(
         # One matcher per title of the later work: SequenceMatcher caches what it learns about
         # its second sequence, so every earlier work is compared against it cheaply. The
         # orientation is the one ``pair_score`` uses, so a listed score is the recorded one.
-        matchers = [(SequenceMatcher(None, "", title), title) for title in other.titles]
+        matchers = [
+            (SequenceMatcher(None, "", title, autojunk=False), title) for title in other.titles
+        ]
         for one in works[:index]:
             key = pair_of(one.work_id, other.work_id)
             if group_of[one.work_id] == group_of[other.work_id] or key in decided:

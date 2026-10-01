@@ -93,6 +93,17 @@ def test_candidates_leave_out_decided_pairs_and_grouped_works() -> None:
     ]
 
 
+def test_a_long_title_is_scored_whole() -> None:
+    """From 200 characters on, difflib's autojunk would drop common letters; it is off."""
+    long = " ".join(["multimodal knowledge distillation for medical image segmentation"] * 4)
+    other = long.replace("segmentation", "classification", 1)
+    assert len(long) > 200
+    assert score([long], [other]) > 0.95
+    facts = {"a": _facts("a", long), "b": _facts("b", other)}
+    (pair,) = candidate_pairs(facts, {"a": "a", "b": "b"}, set(), 0.8)
+    assert pair.score > 0.95
+
+
 def test_the_fast_listing_agrees_with_scoring_every_pair() -> None:
     """The cheap bounds only skip pairs that cannot reach the threshold: same pairs, same scores."""
     titles = [
