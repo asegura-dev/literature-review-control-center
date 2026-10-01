@@ -28,6 +28,7 @@ from lrcc.features.configuration import (
     open_configured_workspace,
     workspace_of,
 )
+from lrcc.features.dedupe import DedupeResult, dedupe_review
 from lrcc.features.imports import ImportOutcome, import_run
 from lrcc.features.init import InitResult, init_review
 from lrcc.features.replay import ReplayResult, replay_review
@@ -35,7 +36,7 @@ from lrcc.features.search import RunOutcome, SearchOutcome, run_search, search_r
 from lrcc.features.status import StatusResult, review_status
 from lrcc.features.validate import ValidationResult, validate_review
 from lrcc.features.verify import VerifyResult, verify_review
-from lrcc.views.cli.composition import build_source, build_sources, build_store
+from lrcc.views.cli.composition import build_catalog, build_source, build_sources, build_store
 
 app = typer.Typer(
     add_completion=False,
@@ -279,6 +280,56 @@ def _show_replay(result: ReplayResult) -> None:
         console.print(Text(f"  {run.run_id}  logged {run.logged}  replayed {replayed}  {verdict}"))
     if result.runs and result.identical:
         console.print(Text("Every run is reproduced from its stored responses.", style="green"))
+
+
+@app.command()
+def dedupe(
+    review_id: ReviewIdArgument, config: ConfigOption = None, as_json: JsonOption = False
+) -> None:
+    """Join the review's records into works through shared identifiers: exact duplicates."""
+    try:
+        workspace = open_configured_workspace(config, os.environ)
+        result = dedupe_review(
+            workspace, review_id, build_store(workspace, review_id), build_catalog(workspace)
+        )
+    except LrccError as error:
+        _fail(error, as_json)
+    _present(result.as_dict(), as_json, lambda: _show_dedupe(result))
+
+
+def _show_dedupe(result: DedupeResult) -> None:
+    console.print(
+        Text.assemble(
+            "Review ",
+            (result.review_id, "bold"),
+            f": {result.linked_now} record(s) linked to works in this pass.",
+        )
+    )
+    if result.joined_by:
+        joined = ", ".join(f"{kind} {count}" for kind, count in sorted(result.joined_by.items()))
+        console.print(Text(f"  joined a work already named, by: {joined}"))
+    # One line per run, never a table: a run id must stay whole to be copied or searched for.
+    for run in result.runs:
+        console.print(
+            Text(
+                f"  {run.run_id}  {run.records} records  {run.first_seen} first seen  "
+                f"{run.already_seen} already seen  "
+                f"protocol {'current' if run.current_protocol else 'changed since'}"
+            )
+        )
+    console.print(
+        Text(
+            f"Runs under the current protocol: {result.current_records} records,"
+            f" {result.current_works} works, {result.current_duplicates} duplicates removed.",
+            style="green",
+        )
+    )
+    console.print(
+        Text(
+            f"The review holds {result.works} works. {result.unstable} of them are named from a"
+            " title or a database's own number, not from a DOI, PMID or arXiv id."
+        )
+    )
 
 
 @app.command("check-query")

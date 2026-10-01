@@ -1,5 +1,7 @@
 """A review's storage in DuckDB, with its raw responses as files (ADR-0004, ADR-0012).
 
+Besides the run log and the records, the database links each record to its work (ADR-0017).
+
 The database is ``review.duckdb`` in the review's folder. Raw responses are written byte for byte
 under ``runs/<run_id>/`` before the log entry that names them, so the log never points at a file
 that is not there. Every statement is parameterized. A connection is opened for one operation and
@@ -8,7 +10,7 @@ closed, because DuckDB allows one writing process at a time.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -18,6 +20,7 @@ from pydantic import ValidationError
 from lrcc.domain.errors import StoreError
 from lrcc.domain.record import Record, SearchResult
 from lrcc.domain.runs import GENESIS, LoggedRun, Run, entry_hash
+from lrcc.domain.works import Link
 
 DATABASE = "review.duckdb"
 RUNS = "runs"
@@ -43,6 +46,15 @@ _SCHEMA = (
         year INTEGER,
         doi VARCHAR,
         abstract VARCHAR,
+        PRIMARY KEY (run_id, position)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS links (
+        run_id VARCHAR NOT NULL,
+        position INTEGER NOT NULL,
+        work_id VARCHAR NOT NULL,
+        matched_by VARCHAR NOT NULL,
         PRIMARY KEY (run_id, position)
     )
     """,
@@ -241,3 +253,48 @@ class DuckDbReviewStore:
             )
             for source, source_id, title, authors, year, doi, abstract in rows
         )
+
+    def links(self) -> tuple[Link, ...]:
+        """Return every record's link to its work, in log order (ADR-0017).
+
+        Returns:
+            The links. Empty if the review has no database yet.
+        """
+        if not self._database.exists():
+            return ()
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT l.run_id, l.position, l.work_id, l.matched_by FROM links l"
+                " JOIN runs r ON r.run_id = l.run_id ORDER BY r.seq, l.position"
+            ).fetchall()
+        return tuple(
+            Link(run_id=run_id, position=position, work_id=work_id, matched_by=matched_by)
+            for run_id, position, work_id, matched_by in rows
+        )
+
+    def save_links(self, links: Sequence[Link]) -> None:
+        """Append links, in one transaction. A record already linked is refused.
+
+        Args:
+            links: The new links.
+
+        Raises:
+            StoreError: If the database cannot be written, or a record is already linked.
+                Nothing is written in that case.
+        """
+        if not links:
+            return
+        with self._connection() as connection:
+            connection.begin()
+            try:
+                for link in links:
+                    connection.execute(
+                        "INSERT INTO links VALUES (?, ?, ?, ?)",
+                        [link.run_id, link.position, link.work_id, link.matched_by],
+                    )
+            except duckdb.ConstraintException as problem:
+                connection.rollback()
+                raise StoreError(
+                    f"{self._database} already links one of these records", [str(problem)]
+                ) from None
+            connection.commit()
